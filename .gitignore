@@ -38,3 +38,9 @@ vignettes/*.pdf
 /results
 #Produced htmls from .Rmd docs
 *.html
+#Produced .docx
+*.docx
+#Produced .xlsx
+*.xlsx
+#Produced .pptx
+*.pptx
