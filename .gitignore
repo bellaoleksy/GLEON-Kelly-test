@@ -36,3 +36,5 @@ vignettes/*.pdf
 /archive
 #results folder
 /results
+#Produced htmls from .Rmd docs
+*.html
