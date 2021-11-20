@@ -1,0 +1,51 @@
+# install.packages("rmarkdown", type ="mac.binary")
+
+# install.packages("RSQLite")
+# install.packages("rgeos")
+# install.packages("patchwork")
+# install.packages("rstatix")
+# install.packages("ggcorrplot")
+library(ggcorrplot)
+library(rstatix)
+library(RiverLoad)
+library(readxl)
+library(patchwork)
+library(RSQLite)
+library(dplyr)
+library(ggplot2)
+library(yaml)
+library(scales) # to add percentages to plots and pretty_breaks()
+library(ggplot2)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rgeos)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(stringr)
+library(lubridate)
+library(googlesheets4)
+library(huxtable)
+library(viridis)
+library(hrbrthemes) #has nice fonts
+library(colorspace)
+# hrbrthemes::import_roboto_condensed()
+library(here)
+library(renv)
+library(ggpubr)
+library(broom)
+library(glue)
+library(ggridges) # for geom_density_ridges
+library(skimr)
+library(deSolve)
+
+# install.packages("remotes")
+# remotes::install_github("MilesMcBain/breakerofchains")
+library(breakerofchains)
+
+
+
+select <- dplyr::select
+#make it so that MASS::select() doesnt constantly clash with dplyr::select

@@ -1,0 +1,2332 @@
+---
+title: "ARCHIVE_MeasuredLoads"
+author: "Bella Oleksy"
+date: "4/7/2021"
+output: html_document
+---
+
+
+#Pull in nutrient loads
+```{r, echo=FALSE}
+# ~Zwart loads  -------------------------------------------------
+
+#### loading in nutrient loads from Zwart's dataset ###
+dir<-'/Users/solomonlab/Google Drive/Research (common)/Research/Data/R/catchment_metab_wg/results/nutrient load/' # directory of load data
+files<-list.files(dir) # folders in this dir
+files<-files[-grep('Readme',files)] # get rid of README doc
+
+zwart_load<-data.frame() # data frame to store all load data
+for(i in 1:length(files)){ # loops over all files in load directory
+  cur<-read.table(file.path(dir,files[i]),header=T,sep='\t',
+                  stringsAsFactors = F) # read in lake specific load data
+  cur$lake<-strsplit(files[i], split = '_loads.txt')[[1]][1]
+  zwart_load<-rbind(zwart_load,cur)
+}
+
+zwart_load <- as_tibble(zwart_load) %>%
+  mutate(date = as.Date(Date)) %>%
+  select(-Date)
+
+## ~Mueggelsee loads -------------------------------------------------
+
+mueggelsee_Q<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Mueggelsee/Mueggelsee_Spree_discharge.txt") %>%
+  select(-site) %>%
+  mutate(dateTime=ymd(dateTime)) 
+glimpse(mueggelsee_Q)
+mueggelsee_C<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Mueggelsee/Mueggelsee_Spree_nutrient_trim.txt") %>%
+  mutate(dateTime=mdy_hm(dateTime),
+         dateTime=date(dateTime)) %>%
+  select(-site)
+mueggelsee_load<-right_join(mueggelsee_C, mueggelsee_Q, by="dateTime") %>%
+  filter(dateTime > "2015-01-01" & dateTime < "2015-12-31") %>% #Keep only 2015, where we have metab data
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = DOC_mgL) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP_ugL/1000,
+         SRP_mgL=SRP_ugL/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP_ugL, -SRP_ugL) 
+glimpse(mueggelsee_load)
+## ~Acton loads -------------------------------------------------
+
+acton_Q_marshall<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Acton/ActonLake_streams_discharge_marshallsbranch.txt") %>%
+  mutate(dateTime=ymd_hms(dateTime)) 
+glimpse(acton_Q_marshall)
+
+acton_Q_fourmile<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Acton/ActonLake_streams_discharge_fourmilecreek.txt") %>%
+  mutate(dateTime=ymd_hms(dateTime)) 
+glimpse(acton_Q_fourmile)
+
+acton_Q_littlefourmile<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Acton/ActonLake_streams_discharge_littlefourmilecreek.txt") %>%
+  mutate(dateTime=ymd_hms(dateTime)) 
+glimpse(acton_Q_littlefourmile)
+
+
+
+acton_C_marshall<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Acton/ActonLake_streams_nutrients_marshallsbranch.txt") %>%
+  mutate(dateTime=dmy_hm(dateTime),
+         dateTime=date(dateTime)) %>%
+  group_by(dateTime, site)%>%
+  summarize_all(.funs=mean) 
+glimpse(acton_C_marshall)
+
+acton_C_fourmile<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Acton/ActonLake_streams_nutrients_fourmilecreek.txt") %>%
+  select(site:SRP_ugL)%>%
+  mutate(dateTime=dmy_hm(dateTime),
+         dateTime=date(dateTime)) %>%
+  group_by(dateTime, site)%>%
+  summarize_all(.funs=mean)
+glimpse(acton_C_fourmile)
+
+acton_C_littlefourmile<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Acton/ActonLake_streams_nutrients_littlefourmilecreek.txt") %>%
+  select(site:SRP_ugL)%>%
+  mutate(dateTime=dmy_hm(dateTime),
+         dateTime=date(dateTime)) %>%
+  group_by(dateTime, site)%>%
+  summarize_all(.funs=mean)
+glimpse(acton_C_littlefourmile)
+
+acton_marshall_load<-left_join(acton_C_marshall, acton_Q_marshall, by=c("dateTime","site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TN_ugL) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP_ugL/1000,
+         SRP_mgL=SRP_ugL/1000,
+         TN_mgL=TN_ugL/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP_ugL, -SRP_ugL, -TN_ugL) 
+glimpse(acton_marshall_load)
+
+acton_littlefourmile_load<-left_join(acton_C_littlefourmile, acton_Q_littlefourmile, by=c("dateTime","site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TN_ugL) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP_ugL/1000,
+         SRP_mgL=SRP_ugL/1000,
+         TN_mgL=TN_ugL/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP_ugL, -SRP_ugL, -TN_ugL) 
+glimpse(acton_littlefourmile_load)
+
+acton_fourmile_load<-left_join(acton_C_fourmile, acton_Q_fourmile, by=c("dateTime","site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TN_ugL) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP_ugL/1000,
+         SRP_mgL=SRP_ugL/1000,
+         TN_mgL=TN_ugL/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP_ugL, -SRP_ugL, -TN_ugL) 
+glimpse(acton_fourmile_load)
+
+
+## ~Taupo loads -------------------------------------------------
+
+Taupo_Q_Hinemaiaia<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Hinemaiaia_discharge.txt") %>%
+  mutate(dateTime=ymd(dateTime)) 
+glimpse(Taupo_Q_Hinemaiaia)
+
+Taupo_Q_Kuratau<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Kuratau_discharge.txt") %>%
+  mutate(dateTime=ymd(dateTime)) 
+glimpse(Taupo_Q_Kuratau)
+
+Taupo_Q_Tauranga<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Tauranga-Taupo-River_discharge.txt") %>%
+  mutate(dateTime=dmy(dateTime),
+         discharge=as.numeric(discharge)) 
+glimpse(Taupo_Q_Tauranga)
+
+Taupo_Q_TokaanuPowerStation<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_TokaanuPowerStation_discharge.txt") %>%
+  mutate(dateTime=ymd(dateTime))
+glimpse(Taupo_Q_TokaanuPowerStation)
+
+Taupo_Q_Tongariro<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Tongariro_discharge.txt") %>%
+  mutate(dateTime=ymd(dateTime)) 
+glimpse(Taupo_Q_Tongariro)
+
+Taupo_Q_Whangamata<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Whangamata_discharge.txt") %>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         site = replace(site, site=="Whangamata Stm ", 'Whangamata')) 
+glimpse(Taupo_Q_Whangamata)
+
+Taupo_Q_Whareroa<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Whareroa_discharge.txt") %>%
+  mutate(dateTime=ymd(dateTime)) 
+glimpse(Taupo_Q_Whareroa)
+
+
+Taupo_C_Hinemaiaia<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Hinemaiaia_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         streamID = replace(streamID, streamID=="Hinemaiaia River", 'Hinemaiaia'),
+         DOC = replace(DOC, is.na(DOC), mean(DOC, na.rm=TRUE))) #replacing with measured value 
+glimpse(Taupo_C_Hinemaiaia)
+
+Taupo_C_Kuratau<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Kuratau_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         streamID = replace(streamID, streamID=="Kuratau River", 'Kuratau'),
+         DOC = replace(DOC, is.na(DOC), mean(DOC, na.rm=TRUE))) #replacing with measured value
+glimpse(Taupo_C_Kuratau)
+
+Taupo_C_Tauranga<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Tauranga-Taupo-River_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         DOC = replace(DOC, is.na(DOC), mean(DOC, na.rm=TRUE))) #replacing with measured value
+glimpse(Taupo_C_Tauranga)
+
+Taupo_C_Waihaha<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Waihaha_nutrient.txt") %>%
+    select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         DOC = replace(DOC, is.na(DOC), mean(DOC, na.rm=TRUE))) #replacing with measured value
+glimpse(Taupo_C_Waihaha)
+
+Taupo_C_Tongariro<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Tongariro_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         streamID = replace(streamID, streamID=="Tongariro River", 'Tongariro')) 
+glimpse(Taupo_C_Tongariro)
+
+Taupo_C_Whangamata<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Whangamata_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         streamID = replace(streamID, streamID=="Whangamata Stm", 'Whangamata')) 
+glimpse(Taupo_C_Whangamata)
+
+Taupo_C_TokaanuPowerStation<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Tokaanu-Power-Station_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime))
+glimpse(Taupo_C_TokaanuPowerStation)
+
+
+Taupo_C_Whareroa<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Whareroa_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime)) 
+glimpse(Taupo_C_Whareroa)
+
+Taupo_C_Mapara<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Mapara_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         DOC = replace(DOC, is.na(DOC), mean(DOC, na.rm=TRUE))) #replacing with measured value
+glimpse(Taupo_C_Mapara)
+
+Taupo_C_Waihaha<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Waihaha_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         DOC = replace(DOC, is.na(DOC), mean(DOC, na.rm=TRUE))) #replacing with measured value
+glimpse(Taupo_C_Waihaha)
+
+Taupo_C_Whanganui<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Whanganui_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime)) 
+glimpse(Taupo_C_Whanganui)
+
+Taupo_C_Waitahanui<-read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_Waitahanui_nutrient.txt") %>%
+  select(streamID, dateTime, TP, TN, DOC)%>%
+  mutate(dateTime=ymd_hms(dateTime),
+         dateTime=date(dateTime),
+         DOC = replace(DOC, is.na(DOC), mean(DOC, na.rm=TRUE))) #replacing with measured value
+glimpse(Taupo_C_Waitahanui)
+
+
+
+Taupo_Hinemaiaia_load<-left_join(Taupo_C_Hinemaiaia, Taupo_Q_Hinemaiaia, by=c("dateTime",
+                                                                              "streamID"="site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC) 
+glimpse(Taupo_Hinemaiaia_load)
+
+
+Taupo_Tauranga_load<-left_join(Taupo_C_Tauranga, Taupo_Q_Tauranga, by=c("dateTime",
+                                                                        "streamID"="site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC) %>%
+  mutate(flow=as.numeric(flow))
+glimpse(Taupo_Tauranga_load)
+
+Taupo_Kuratau_load<-left_join(Taupo_C_Kuratau, Taupo_Q_Kuratau, by=c("dateTime",
+                                                                        "streamID"="site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC) 
+glimpse(Taupo_Kuratau_load)
+
+
+Taupo_TokaanuPowerStation_load<-left_join(Taupo_C_TokaanuPowerStation,
+                                          Taupo_Q_TokaanuPowerStation, by=c("dateTime",
+                                                                        "streamID"="site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC) 
+glimpse(Taupo_TokaanuPowerStation_load)
+
+Taupo_Tongariro_load<-left_join(Taupo_C_Tongariro, Taupo_Q_Tongariro, by=c("dateTime",
+                                                                        "streamID"="site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC) 
+glimpse(Taupo_Tongariro_load)
+
+
+Taupo_Whangamata_load<-left_join(Taupo_C_Whangamata, Taupo_Q_Whangamata, by=c("dateTime",
+                                                                       "streamID"="site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC) 
+glimpse(Taupo_Whangamata_load)
+
+Taupo_Whareroa_load<-left_join(Taupo_C_Whareroa, Taupo_Q_Whareroa, by=c("dateTime",
+                                                                       "streamID"="site")) %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00"))) %>%
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC) %>%
+  mutate(flow=as.numeric(flow))
+glimpse(Taupo_Whareroa_load)
+
+Taupo_Mapara_load<- Taupo_C_Mapara %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00")),
+         discharge=0.33) %>% #assuming average flow for 2015-2019
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC)
+glimpse(Taupo_Mapara_load)
+
+Taupo_Waihaha_load<- Taupo_C_Waihaha %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00")),
+         discharge=0.44) %>% #assuming average flow for 2015-2019
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC)
+glimpse(Taupo_Waihaha_load)
+
+Taupo_Whanganui_load<- Taupo_C_Whanganui %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00")),
+         discharge=2.30) %>% #assuming average flow for 2015-2019
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC)
+glimpse(Taupo_Whanganui_load)
+
+Taupo_Waihaha_load<- Taupo_C_Waihaha %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00")),
+         discharge=5.98) %>% #assuming average flow for 2015-2019
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC)
+glimpse(Taupo_Waihaha_load)
+
+Taupo_Waitahanui_load<- Taupo_C_Waitahanui %>%
+  mutate(dateTime=ymd_hms(paste(dateTime, "12:00:00")),
+         discharge=7.93) %>% #assuming average flow for 2015-2019
+  rename(datetime=dateTime,
+         flow=discharge) %>%
+  relocate(flow, .before = TP) %>% #rearranging so flow is after datetime for load estimation software
+  mutate(TP_mgL=TP/1000,
+         DOC_mgL=DOC,
+         TN_mgL=TN/1000) %>% #Convert anything in ug/L to mg/L (==g/L3)
+  select(-TP, -TN, -DOC)
+glimpse(Taupo_Waitahanui_load)
+
+#Filter out some observations for lake Taupo so we are left with spring-fall data of one year
+#Hinemaiaia
+dontuse <- subset(Taupo_Hinemaiaia_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Hinemaiaia_load<-anti_join(Taupo_Hinemaiaia_load, dontuse)
+#Tauranga
+dontuse <- subset(Taupo_Tauranga_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Tauranga_load<-anti_join(Taupo_Tauranga_load, dontuse)
+#Kuratau
+dontuse <- subset(Taupo_Kuratau_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Kuratau_load<-anti_join(Taupo_Kuratau_load, dontuse)
+#Waihaha 
+dontuse <- subset(Taupo_Waihaha_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Waihaha_load<-anti_join(Taupo_Waihaha_load, dontuse)
+#Tongariro
+dontuse <- subset(Taupo_Tongariro_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Tongariro_load<-anti_join(Taupo_Tongariro_load, dontuse)
+#Whareroa
+dontuse <- subset(Taupo_Whareroa_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Whareroa_load<-anti_join(Taupo_Whareroa_load, dontuse)
+#Whangamata
+dontuse <- subset(Taupo_Whangamata_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Whangamata_load<-anti_join(Taupo_Whangamata_load, dontuse)
+#Mapara
+dontuse <- subset(Taupo_Mapara_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Mapara_load<-anti_join(Taupo_Mapara_load, dontuse)
+#Waihaha
+dontuse <- subset(Taupo_Waihaha_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Waihaha_load<-anti_join(Taupo_Waihaha_load, dontuse)
+#Whanganui
+dontuse <- subset(Taupo_Whanganui_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Whanganui_load<-anti_join(Taupo_Whanganui_load, dontuse)
+#Waihaha
+dontuse <- subset(Taupo_Waihaha_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Waihaha_load<-anti_join(Taupo_Waihaha_load, dontuse)
+#Waitahanui
+dontuse <- subset(Taupo_Waitahanui_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_Waitahanui_load<-anti_join(Taupo_Waitahanui_load, dontuse)
+#Tokaanu Power Station
+dontuse <- subset(Taupo_TokaanuPowerStation_load, datetime < "2017-10-01" | datetime > "2018-05-01")
+Taupo_TokaanuPowerStation_load<-anti_join(Taupo_TokaanuPowerStation_load, dontuse)
+
+## ~Loch loads -------------------------------------------------
+
+Loch_Q_inlet<-read.csv("~/Google Drive/Research (common)/Research/Data/R/LVWS-long-term-data/data_clean/metabolism/LochInOut_Q_UVs_CY2015_17.csv", stringsAsFactors = F) %>%
+  rename(inlet_ft3s = X401733105392400,
+                outlet_ft3s = X401733105392404) %>%
+  mutate(
+    datetime = mdy_hms(datetime, tz='MST'),
+    datetime = date(datetime),
+    inlet = inlet_ft3s / 35.314666212661, #convert to m3/s
+    outlet = outlet_ft3s / 35.314666212661) %>%
+  select(-inlet_ft3s, -outlet_ft3s ) %>%
+  group_by(datetime)%>%
+  summarize(flow=mean(inlet, na.rm=TRUE)) %>%
+  filter(datetime>"2016-06-01" & datetime < "2016-09-01")
+glimpse(Loch_Q_inlet) 
+
+
+##############Loch and Sky
+Loch_C_inlet <- read.csv("~/Google Drive/Research (common)/Research/Data/R/LVWS-long-term-data/data_clean/surface_chem/LVWS_surfacewaterchemistry_master_180211.csv", stringsAsFactors = F)
+glimpse(Loch_C_inlet)
+Loch_C_inlet$YEAR <- as.factor(as.character(Loch_C_inlet$YEAR))
+Loch_C_inlet$MONTH <- as.numeric(Loch_C_inlet$MONTH)
+Loch_C_inlet$DAY <- as.factor(as.character(Loch_C_inlet$DAY))
+Loch_C_inlet$DATE <- ymd(as.character(Loch_C_inlet$DATE))
+
+Loch_C_inlet <- Loch_C_inlet %>%
+  mutate(SEASON = 
+           ifelse(MONTH %in% c(12, 1, 2), "WINTER",
+                  ifelse(MONTH %in% c(3, 4, 5), "SPRING",
+                         ifelse(MONTH %in% c(6, 7, 8), "SUMMER",
+                                ifelse(MONTH %in% c(9, 10, 11), "FALL", "ERROR"))))) %>%
+  filter(YEAR=="2016" & SEASON=="SUMMER" ) %>%
+  filter(SITE %in% c("LOCH.I")) %>%
+  filter(TYPE=="NORMAL"|TYPE=="DUPE") %>%
+  rename(DOC_mgL=DOC,
+         TN_mgL=TDN,
+         TP_ugL=TP_HSWL,
+         datetime=DATE) %>%
+  mutate(TP_mgL=TP_ugL/1000)%>%
+  select(datetime, DOC_mgL, TN_mgL, TP_mgL) 
+glimpse(Loch_C_inlet)
+
+
+
+Loch_inlet_load<-right_join(Loch_C_inlet, Loch_Q_inlet, 
+                           by=c("datetime")) %>%
+  mutate(datetime=ymd_hms(paste(datetime, "12:00:00"))) %>%
+  # rename(datetime=dateTime,
+  #        flow=discharge) %>%
+  relocate(flow, .before = DOC_mgL) %>% #rearranging so flow is after datetime for load estimation software
+  arrange(datetime)
+glimpse(Loch_inlet_load)
+
+```
+
+### Mueggelsee loads
+```{r, Mueggelsee loads}
+#Calculate loads
+
+mueggelsee_load_manual <- mueggelsee_load %>%
+  select(datetime, flow, DOC_mgL, TP_mgL) %>%
+  mutate(DOC_load_gday=DOC_mgL*flow*86400) %>%   #mg/L = g/m3. So m3 cancels out and you mult by 86400 s in a day and divide by 1000g per kg to day kg/day. 
+  summarize(DOC_load_g_total=sum(DOC_load_gday))
+
+mueggelsee_load_manual2<- imputeTS::na_interpolation(mueggelsee_load, "linear") %>%
+  arrange(datetime) %>%
+  select(datetime, flow, DOC_mgL, TP_mgL) %>%
+  mutate(DOC_load_gday=DOC_mgL*flow*86400) %>%  #mg/L = g/m3. So m3 cancels out and you multiply by 86400 s in a day and divide by 1000g per kg to day kg/day. 
+  summarize(DOC_load_g_total=sum(DOC_load_gday))
+
+
+n<-nrow(mueggelsee_load)
+interpolation<-data.frame(imputeTS::na_interpolation(mueggelsee_load, "linear")) %>%arrange(datetime)
+load<-data.frame(interpolation[,2]*interpolation[,-c(1:2)])
+difference<-matrix(nrow=(nrow(mueggelsee_load)-1), ncol=1)
+for (i in 1:(nrow(mueggelsee_load)-1)){
+difference[i]<-difftime(mueggelsee_load[i+1,1], mueggelsee_load[i,1], units="days")
+  }
+
+
+
+
+mueggelsee_met1<-method1(mueggelsee_load, 7)
+mueggelsee_met2<-method2(mueggelsee_load, 7)
+mueggelsee_met3<-method3(mueggelsee_load, 7)
+mueggelsee_met4<-method4(mueggelsee_load, 7)
+mueggelsee_met5<-method5(mueggelsee_load, 7)
+mueggelsee_met6<-method6(mueggelsee_load, 7)
+mueggelsee_all_methods<-(rbind(mueggelsee_met1,
+                   mueggelsee_met2,
+                   mueggelsee_met3,
+                   mueggelsee_met4,
+                   mueggelsee_met5,
+                   mueggelsee_met6)) #Estimates in g per period
+
+#Relationship between flow and concentrations
+CQregression(mueggelsee_load, 7)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(mueggelsee_load, 7, "year")
+
+#Compare results
+mueggelsee_all_methods<-as.data.frame(mueggelsee_all_methods) %>%
+  rownames_to_column("method")  %>%
+    mutate(DOC_molL=DOC_mgL/12,
+         TP_molL=TP_mgL/31,
+         DOC_TP_molmol= DOC_molL/TP_molL,
+         method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+DOC<-mueggelsee_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity", color="black") +
+  xlab("Method") +
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1))+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(mueggelsee_all_methods$DOC_mgL*10^-6,0), vjust=1.5)
+
+
+TP<-mueggelsee_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(mueggelsee_all_methods$TP_mgL*10^-6,0), vjust=1.5)
+
+DOC_TP<-mueggelsee_all_methods %>%
+  ggplot(aes(x=method, y=DOC_TP_molmol, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  scale_y_continuous(expression(DOC:TP~load~(mol:mol)), labels = scales::comma )+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+          axis.title.x=element_blank())+
+  scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(mueggelsee_all_methods$DOC_TP_molmol,0), vjust=1.5)
+
+(DOC+TP)/DOC_TP+
+plot_layout(guides = 'collect')
+
+
+
+```
+
+#### *Method 6*
+```{r, method 6 theloch, include=FALSE}
+
+mueggelsee_met6<-as.data.frame(mueggelsee_met6) %>%
+  rownames_to_column("nutrient") %>%
+  rename(value=mueggelsee_met6) %>%
+  filter(nutrient %in% c("DOC_mgL", "TN_mgL","TP_mgL"))
+
+mueggelsee_met6 %>% 
+    ggplot(aes(x=nutrient, y=value*10^-6, fill=nutrient)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Nutrient") +
+  scale_y_continuous(expression(Nutrient~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey20","grey50","grey90"))+
+  # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
+  ggtitle("Mueggelsee")
+
+#Totals and ratio
+mueggelsee_load_summary<-mueggelsee_met6 %>%
+  pivot_wider(names_from="nutrient",values_from="value") %>%
+  summarize_at(vars(DOC_mgL:TP_mgL), sum, na.rm=TRUE) %>%
+  mutate(lakeName="Mueggelsee") %>%
+    mutate(DOC_molL=DOC_mgL/12,
+         TP_molL=TP_mgL/31,
+         DOC_TP_molmol= DOC_molL/TP_molL,
+         DOC_TP_massmass = DOC_mgL/TP_mgL) %>%
+  select(-DOC_molL, -TP_molL) 
+
+mueggelsee_load_summary%>%
+  mutate(`TP (kg)`=comma(TP_mgL*10^-6),
+         `TN (kg)`=comma(TN_mgL*10^-6),
+         `DOC (kg)`=comma(DOC_mgL*10^-6),
+         `DOC:TP (mol:mol)`= comma(DOC_TP_molmol),
+         `DOC:TP (mass:mass)`= comma(DOC_TP_massmass), )%>%
+  select(-DOC_mgL, -TP_mgL, -TN_mgL, -DOC_TP_molmol, -DOC_TP_massmass) %>%
+  hux() %>% 
+  # add_colnames() %>% 
+  set_bold(row = 1, col = everywhere, value = TRUE) %>% 
+  set_all_borders(TRUE) %>%
+  theme_plain()
+
+```
+
+
+### Acton loads
+#### Marshall's branch
+```{r, acton_marshall loads, include=FALSE}
+#Calculate loads
+acton_marshall_load <- acton_marshall_load %>%
+  select(-site) %>%
+  as.data.frame() #RiverLoads doesn't like tibble apparently
+
+acton_marshall_met1<-method1(acton_marshall_load, 5)
+acton_marshall_met2<-method2(acton_marshall_load, 5)
+acton_marshall_met3<-method3(acton_marshall_load, 5)
+acton_marshall_met4<-method4(acton_marshall_load, 5)
+acton_marshall_met5<-method5(acton_marshall_load, 5)
+acton_marshall_met6<-method6(acton_marshall_load, 5)
+acton_marshall_all_methods<-(rbind(acton_marshall_met1,
+                   acton_marshall_met2,
+                   acton_marshall_met3,
+                   acton_marshall_met4,
+                   acton_marshall_met5,
+                   acton_marshall_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(acton_marshall_load, 5)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(acton_marshall_load, 5, "month")
+
+#Compare results
+acton_marshall_all_methods<-as.data.frame(acton_marshall_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+acton_marshall_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Marshall's Branch")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(acton_marshall_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+acton_marshall_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Marshall's Branch")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(acton_marshall_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+```
+#### Little four mile creek
+```{r, acton_littlefourmile loads, include=FALSE}
+#Calculate loads
+acton_littlefourmile_load <- acton_littlefourmile_load %>%
+  select(-site) %>%
+  as.data.frame() #RiverLoads doesn't like tibble apparently
+
+acton_littlefourmile_met1<-method1(acton_littlefourmile_load, 5)
+acton_littlefourmile_met2<-method2(acton_littlefourmile_load, 5)
+acton_littlefourmile_met3<-method3(acton_littlefourmile_load, 5)
+acton_littlefourmile_met4<-method4(acton_littlefourmile_load, 5)
+acton_littlefourmile_met5<-method5(acton_littlefourmile_load, 5)
+acton_littlefourmile_met6<-method6(acton_littlefourmile_load, 5)
+acton_littlefourmile_all_methods<-(rbind(acton_littlefourmile_met1,
+                   acton_littlefourmile_met2,
+                   acton_littlefourmile_met3,
+                   acton_littlefourmile_met4,
+                   acton_littlefourmile_met5,
+                   acton_littlefourmile_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(acton_littlefourmile_load, 5)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(acton_littlefourmile_load, 5, "month")
+
+#Compare results
+acton_littlefourmile_all_methods<-as.data.frame(acton_littlefourmile_all_methods) %>%
+  rownames_to_column("method")  %>%
+    mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+acton_littlefourmile_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Little Four Mile Creek")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(acton_littlefourmile_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+acton_littlefourmile_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  xlab("Method") +
+  ggtitle("Little Four Mile Creek")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(acton_littlefourmile_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+
+```
+#### Four mile creek
+```{r, acton_fourmile loads, include=FALSE}
+#Calculate loads
+acton_fourmile_load <- acton_fourmile_load %>%
+  select(-site) %>%
+  as.data.frame() %>%#RiverLoads doesn't like tibble apparently
+  drop_na() #Need to drop NA days otherwise method6 doesn't work
+
+acton_fourmile_met1<-method1(acton_fourmile_load, 5)
+acton_fourmile_met2<-method2(acton_fourmile_load, 5)
+acton_fourmile_met3<-method3(acton_fourmile_load, 5)
+acton_fourmile_met4<-method4(acton_fourmile_load, 5)
+acton_fourmile_met5<-method5(acton_fourmile_load, 5)
+acton_fourmile_met6<-method6(acton_fourmile_load, 5)
+acton_fourmile_all_methods<-(rbind(acton_fourmile_met1,
+                   acton_fourmile_met2,
+                   acton_fourmile_met3,
+                   acton_fourmile_met4,
+                   acton_fourmile_met5,
+                   acton_fourmile_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(acton_fourmile_load, 5)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(acton_fourmile_load, 5, "month")
+
+#Compare results
+acton_fourmile_all_methods<-as.data.frame(acton_fourmile_all_methods) %>%
+  rownames_to_column("method")  %>%
+    mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+acton_fourmile_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle(" Four Mile Creek")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(acton_fourmile_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+acton_fourmile_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  xlab("Method") +
+  ggtitle(" Four Mile Creek")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(acton_fourmile_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+
+```
+##### *Method 6 - all tribs*
+```{r, method 6 acton, include=FALSE}
+acton_met6<-rbind(acton_marshall_met6, acton_littlefourmile_met6, acton_fourmile_met6)
+acton_met6<-as.data.frame(acton_met6) %>%
+  rownames_to_column("tributary")  %>%
+    mutate(tributary=factor(tributary,
+                       labels=c("marshall","littlefourmile","fourmile")))
+
+
+acton_met6 %>%
+  ggplot(aes(x=tributary, y=TN_mgL*10^-6, fill=tributary)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("tributary") +
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30"))+
+  geom_text(label=round(acton_met6$TN_mgL*10^-6,1), vjust=1.5)+
+  ggtitle("Acton Lake loads")
+
+
+acton_met6 %>%
+  ggplot(aes(x=tributary, y=TP_mgL*10^-6, fill=tributary)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("tributary") +
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30"))+
+  geom_text(label=round(acton_met6$TP_mgL*10^-6,1), vjust=1.5)+
+  ggtitle("Acton Lake loads")
+
+acton_load_summary<-acton_met6 %>%
+  summarize(TP_mgL=sum(TP_mgL, na.rm=TRUE),
+            # DOC_mgL=sum(DOC_mgL, na.rm=TRUE),
+            TN_mgL=sum(TN_mgL, na.rm=TRUE))%>%
+  mutate(DOC_mgL=NA,
+         DOC_TP_molmol= NA,
+         DOC_TP_massmass = NA) %>%
+  # select(-DOC_molL, -TP_molL) %>%
+  mutate(lakeName="Acton")
+
+
+
+#Totals and ratio
+acton_met6 %>%
+  summarize_at(vars(TP_mgL:TN_mgL), sum, na.rm=TRUE)%>% 
+  mutate(`TP (kg)`=comma(TP_mgL*10^-6),
+         `TN (kg)`=comma(TN_mgL*10^-6),
+         `SRP (kg)`=comma(SRP_mgL*10^-6)) %>%
+  select(-TP_mgL, -TN_mgL, -SRP_mgL) %>%
+  hux() %>% 
+  # add_colnames() %>% 
+  set_bold(row = 1, col = everywhere, value = TRUE) %>% 
+  set_all_borders(TRUE) %>%
+  theme_plain()
+
+```
+
+
+### Taupo loads
+#### Hinemaiaia
+```{r, taupo_hinemaiaia loads, include=FALSE}
+#Calculate loads
+Taupo_Hinemaiaia_load <- Taupo_Hinemaiaia_load %>%
+  select(-streamID) %>%
+  as.data.frame() #RiverLoads doesn't like tibble apparently
+
+Taupo_Hinemaiaia_met1<-method1(Taupo_Hinemaiaia_load, 3)
+Taupo_Hinemaiaia_met2<-method2(Taupo_Hinemaiaia_load, 3)
+Taupo_Hinemaiaia_met3<-method3(Taupo_Hinemaiaia_load, 3)
+Taupo_Hinemaiaia_met4<-method4(Taupo_Hinemaiaia_load, 3)
+Taupo_Hinemaiaia_met5<-method5(Taupo_Hinemaiaia_load, 3)
+Taupo_Hinemaiaia_met6<-method6(Taupo_Hinemaiaia_load, 3)
+Taupo_Hinemaiaia_all_methods<-(rbind(Taupo_Hinemaiaia_met1,
+                   Taupo_Hinemaiaia_met2,
+                   Taupo_Hinemaiaia_met3,
+                   Taupo_Hinemaiaia_met4,
+                   Taupo_Hinemaiaia_met5,
+                   Taupo_Hinemaiaia_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(Taupo_Hinemaiaia_load, 3)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(Taupo_Hinemaiaia_load,3, "year")
+
+#Compare results
+Taupo_Hinemaiaia_all_methods<-as.data.frame(Taupo_Hinemaiaia_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Hinemaiaia_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Hinemaiaia (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Hinemaiaia_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Hinemaiaia_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Hinemaiaia (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Hinemaiaia_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Hinemaiaia_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Hinemaiaia (Taupo)")+
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Hinemaiaia_all_methods$DOC_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Tauranga
+```{r, taupo_Tauranga loads, include=FALSE}
+#Calculate loads
+Taupo_Tauranga_load <- Taupo_Tauranga_load %>%
+  select(-streamID) %>%
+  as.data.frame() #RiverLoads doesn't like tibble apparently
+
+Taupo_Tauranga_met1<-method1(Taupo_Tauranga_load, 3)
+Taupo_Tauranga_met2<-method2(Taupo_Tauranga_load, 3)
+Taupo_Tauranga_met3<-method3(Taupo_Tauranga_load, 3)
+Taupo_Tauranga_met4<-method4(Taupo_Tauranga_load, 3)
+Taupo_Tauranga_met5<-method5(Taupo_Tauranga_load, 3)
+Taupo_Tauranga_met6<-method6(Taupo_Tauranga_load, 3)
+Taupo_Tauranga_all_methods<-(rbind(Taupo_Tauranga_met1,
+                   Taupo_Tauranga_met2,
+                   Taupo_Tauranga_met3,
+                   Taupo_Tauranga_met4,
+                   Taupo_Tauranga_met5,
+                   Taupo_Tauranga_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(Taupo_Tauranga_load, 3)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(Taupo_Tauranga_load,3, "year")
+
+#Compare results
+Taupo_Tauranga_all_methods<-as.data.frame(Taupo_Tauranga_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Tauranga_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Tauranga (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Tauranga_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Tauranga_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Tauranga (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Tauranga_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+
+Taupo_Tauranga_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Tauranga (Taupo)")+
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Tauranga_all_methods$DOC_mgL*10^-6,1), vjust=1.5)
+
+
+```
+#### Kuratau
+```{r, taupo_Kuratau loads, include=FALSE}
+#Calculate loads
+Taupo_Kuratau_load <- Taupo_Kuratau_load %>%
+  select(-streamID) %>%
+  as.data.frame()  #RiverLoads doesn't like tibble apparently
+
+Taupo_Kuratau_met1<-method1(Taupo_Kuratau_load, 3)
+Taupo_Kuratau_met2<-method2(Taupo_Kuratau_load, 3)
+Taupo_Kuratau_met3<-method3(Taupo_Kuratau_load, 3)
+Taupo_Kuratau_met4<-method4(Taupo_Kuratau_load, 3)
+Taupo_Kuratau_met5<-method5(Taupo_Kuratau_load, 3)
+Taupo_Kuratau_met6<-method6(Taupo_Kuratau_load, 3)
+Taupo_Kuratau_all_methods<-(rbind(Taupo_Kuratau_met1,
+                   Taupo_Kuratau_met2,
+                   Taupo_Kuratau_met3,
+                   Taupo_Kuratau_met4,
+                   Taupo_Kuratau_met5,
+                   Taupo_Kuratau_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+
+#Compare results
+Taupo_Kuratau_all_methods<-as.data.frame(Taupo_Kuratau_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Kuratau_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Kuratau (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Kuratau_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Kuratau_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Kuratau (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Kuratau_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Kuratau_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Kuratau (Taupo)")+
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Kuratau_all_methods$DOC_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Tokaanu Power Station (no DOC)
+```{r, taupo_TokaanuPowerStation loads, include=FALSE}
+#Calculate loads
+Taupo_TokaanuPowerStation_load <- Taupo_TokaanuPowerStation_load %>%
+  select(-streamID) %>%
+  as.data.frame() %>% #RiverLoads doesn't like tibble apparently
+  select(-DOC_mgL)
+Taupo_TokaanuPowerStation_met1<-method1(Taupo_TokaanuPowerStation_load, 2)
+Taupo_TokaanuPowerStation_met2<-method2(Taupo_TokaanuPowerStation_load, 2)
+Taupo_TokaanuPowerStation_met3<-method3(Taupo_TokaanuPowerStation_load, 2)
+Taupo_TokaanuPowerStation_met4<-method4(Taupo_TokaanuPowerStation_load, 2)
+Taupo_TokaanuPowerStation_met5<-method5(Taupo_TokaanuPowerStation_load, 2)
+Taupo_TokaanuPowerStation_met6<-method6(Taupo_TokaanuPowerStation_load, 2)
+Taupo_TokaanuPowerStation_all_methods<-(rbind(Taupo_TokaanuPowerStation_met1,
+                   Taupo_TokaanuPowerStation_met2,
+                   Taupo_TokaanuPowerStation_met3,
+                   Taupo_TokaanuPowerStation_met4,
+                   Taupo_TokaanuPowerStation_met5,
+                   Taupo_TokaanuPowerStation_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Compare results
+Taupo_TokaanuPowerStation_all_methods<-as.data.frame(Taupo_TokaanuPowerStation_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_TokaanuPowerStation_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Tokaanu Power Station (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_TokaanuPowerStation_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_TokaanuPowerStation_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Tokaanu Power Station (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_TokaanuPowerStation_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Tongariro (no DOC)
+```{r, taupo_Tongariro loads, include=FALSE}
+#Calculate loads
+Taupo_Tongariro_load <- Taupo_Tongariro_load %>%
+  select(-streamID) %>%
+  as.data.frame() %>% #RiverLoads doesn't like tibble apparently
+  select(-DOC_mgL) #she doesn't play with NAs
+Taupo_Tongariro_met1<-method1(Taupo_Tongariro_load, 2)
+Taupo_Tongariro_met2<-method2(Taupo_Tongariro_load, 2)
+Taupo_Tongariro_met3<-method3(Taupo_Tongariro_load, 2)
+Taupo_Tongariro_met4<-method4(Taupo_Tongariro_load, 2)
+Taupo_Tongariro_met5<-method5(Taupo_Tongariro_load, 2)
+Taupo_Tongariro_met6<-method6(Taupo_Tongariro_load, 2)
+Taupo_Tongariro_all_methods<-(rbind(Taupo_Tongariro_met1,
+                   Taupo_Tongariro_met2,
+                   Taupo_Tongariro_met3,
+                   Taupo_Tongariro_met4,
+                   Taupo_Tongariro_met5,
+                   Taupo_Tongariro_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(Taupo_Tongariro_load, 2)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(Taupo_Tongariro_load,2, "year")
+
+#Compare results
+Taupo_Tongariro_all_methods<-as.data.frame(Taupo_Tongariro_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Tongariro_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Tongariro (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Tongariro_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Tongariro_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Tongariro (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Tongariro_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Whareroa (no DOC)
+```{r, taupo_Whareroa loads, include=FALSE}
+#Calculate loads
+Taupo_Whareroa_load <- Taupo_Whareroa_load %>%
+  select(-streamID) %>%
+  as.data.frame() %>% #RiverLoads doesn't like tibble apparently
+  select(-DOC_mgL) #she doesn't play with NAs
+
+Taupo_Whareroa_met1<-method1(Taupo_Whareroa_load, 2)
+Taupo_Whareroa_met2<-method2(Taupo_Whareroa_load, 2)
+Taupo_Whareroa_met3<-method3(Taupo_Whareroa_load, 2)
+Taupo_Whareroa_met4<-method4(Taupo_Whareroa_load, 2)
+Taupo_Whareroa_met5<-method5(Taupo_Whareroa_load, 2)
+Taupo_Whareroa_met6<-method6(Taupo_Whareroa_load, 2)
+Taupo_Whareroa_all_methods<-(rbind(Taupo_Whareroa_met1,
+                   Taupo_Whareroa_met2,
+                   Taupo_Whareroa_met3,
+                   Taupo_Whareroa_met4,
+                   Taupo_Whareroa_met5,
+                   Taupo_Whareroa_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(Taupo_Whareroa_load, 2)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(Taupo_Whareroa_load,2, "year")
+
+#Compare results
+Taupo_Whareroa_all_methods<-as.data.frame(Taupo_Whareroa_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Whareroa_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Whareroa (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Whareroa_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Whareroa_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Whareroa (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Whareroa_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Whangamata (mod Q)
+```{r, taupo_Whangamata loads, include=FALSE}
+#Calculate loads
+#NOTE -- this is a modelled Q stream
+Taupo_Whangamata_load <- Taupo_Whangamata_load %>%
+  select(-streamID) %>%
+  as.data.frame() %>% #RiverLoads doesn't like tibble apparently
+  select(-DOC_mgL) %>%#she doesn't play with NAs
+  mutate(flow = replace(flow, is.na(flow), 0.09)) #replacing with modelled mean
+Taupo_Whangamata_met1<-method1(Taupo_Whangamata_load, 2)
+Taupo_Whangamata_met2<-method2(Taupo_Whangamata_load, 2)
+Taupo_Whangamata_met3<-method3(Taupo_Whangamata_load, 2)
+Taupo_Whangamata_met4<-method4(Taupo_Whangamata_load, 2)
+Taupo_Whangamata_met5<-method5(Taupo_Whangamata_load, 2)
+Taupo_Whangamata_met6<-method6(Taupo_Whangamata_load, 2)
+Taupo_Whangamata_all_methods<-(rbind(Taupo_Whangamata_met1,
+                   Taupo_Whangamata_met2,
+                   Taupo_Whangamata_met3,
+                   Taupo_Whangamata_met4,
+                   Taupo_Whangamata_met5,
+                   Taupo_Whangamata_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(Taupo_Whangamata_load, 2)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(Taupo_Whangamata_load,2, "year")
+
+#Compare results
+Taupo_Whangamata_all_methods<-as.data.frame(Taupo_Whangamata_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Whangamata_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Whangamata (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Whangamata_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Whangamata_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Whangamata (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Whangamata_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Mapara (mod Q, no DOC)
+```{r, taupo_Mapara loads, include=FALSE}
+#Calculate loads
+#NOTE -- this is a modelled Q stream
+Taupo_Mapara_load <- Taupo_Mapara_load %>%
+  select(-streamID) %>%
+  as.data.frame()  #RiverLoads doesn't like tibble apparently
+
+Taupo_Mapara_met1<-method1(Taupo_Mapara_load, 3)
+Taupo_Mapara_met2<-method2(Taupo_Mapara_load, 3)
+Taupo_Mapara_met3<-method3(Taupo_Mapara_load, 3)
+Taupo_Mapara_met4<-method4(Taupo_Mapara_load, 3)
+Taupo_Mapara_met5<-method5(Taupo_Mapara_load, 3)
+Taupo_Mapara_met6<-method6(Taupo_Mapara_load, 3)
+Taupo_Mapara_all_methods<-(rbind(Taupo_Mapara_met1,
+                   Taupo_Mapara_met2,
+                   Taupo_Mapara_met3,
+                   Taupo_Mapara_met4,
+                   Taupo_Mapara_met5,
+                   Taupo_Mapara_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Compare results
+Taupo_Mapara_all_methods<-as.data.frame(Taupo_Mapara_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Mapara_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Mapara (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Mapara_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Mapara_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Mapara (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Mapara_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+Taupo_Mapara_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Mapara (Taupo)")+
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Mapara_all_methods$DOC_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Waihaha stream (mod Q)
+```{r, taupo_Waihaha loads, include=FALSE}
+#Calculate loads
+#NOTE -- this is a modelled Q stream
+Taupo_Waihaha_load <- Taupo_Waihaha_load %>%
+  select(-streamID) %>%
+  as.data.frame()  #RiverLoads doesn't like tibble apparently
+
+Taupo_Waihaha_met1<-method1(Taupo_Waihaha_load, 3)
+Taupo_Waihaha_met2<-method2(Taupo_Waihaha_load, 3)
+Taupo_Waihaha_met3<-method3(Taupo_Waihaha_load, 3)
+Taupo_Waihaha_met4<-method4(Taupo_Waihaha_load, 3)
+Taupo_Waihaha_met5<-method5(Taupo_Waihaha_load, 3)
+Taupo_Waihaha_met6<-method6(Taupo_Waihaha_load, 3)
+Taupo_Waihaha_all_methods<-(rbind(Taupo_Waihaha_met1,
+                   Taupo_Waihaha_met2,
+                   Taupo_Waihaha_met3,
+                   Taupo_Waihaha_met4,
+                   Taupo_Waihaha_met5,
+                   Taupo_Waihaha_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Compare results
+Taupo_Waihaha_all_methods<-as.data.frame(Taupo_Waihaha_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Waihaha_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Waihaha (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Waihaha_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Waihaha_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Waihaha (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Waihaha_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+Taupo_Waihaha_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Waihaha (Taupo)")+
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Waihaha_all_methods$DOC_mgL*10^-6,1), vjust=1.5)
+
+```
+#### Whanganui (mod Q, no DOC)
+```{r, taupo_Whanganui loads, include=FALSE}
+#Calculate loads
+#NOTE -- this is a modelled Q stream
+Taupo_Whanganui_load <- Taupo_Whanganui_load %>%
+  select(-streamID) %>%
+  as.data.frame() %>% #RiverLoads doesn't like tibble apparently
+  select(-DOC_mgL) #She doesn't play with NAs either
+Taupo_Whanganui_met1<-method1(Taupo_Whanganui_load, 2)
+Taupo_Whanganui_met2<-method2(Taupo_Whanganui_load, 2)
+Taupo_Whanganui_met3<-method3(Taupo_Whanganui_load, 2)
+Taupo_Whanganui_met4<-method4(Taupo_Whanganui_load, 2)
+Taupo_Whanganui_met5<-method5(Taupo_Whanganui_load, 2)
+Taupo_Whanganui_met6<-method6(Taupo_Whanganui_load, 2)
+Taupo_Whanganui_all_methods<-(rbind(Taupo_Whanganui_met1,
+                   Taupo_Whanganui_met2,
+                   Taupo_Whanganui_met3,
+                   Taupo_Whanganui_met4,
+                   Taupo_Whanganui_met5,
+                   Taupo_Whanganui_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Compare results
+Taupo_Whanganui_all_methods<-as.data.frame(Taupo_Whanganui_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Whanganui_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Whanganui (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Whanganui_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Whanganui_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Whanganui (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Whanganui_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+```
+#### Waitahanui (mod Q)
+```{r, taupo_Waitahanui loads, include=FALSE}
+#Calculate loads
+#NOTE -- this is a modelled Q stream
+Taupo_Waitahanui_load <- Taupo_Waitahanui_load %>%
+  select(-streamID) %>%
+  as.data.frame()  #RiverLoads doesn't like tibble apparently
+
+Taupo_Waitahanui_met1<-method1(Taupo_Waitahanui_load, 3)
+Taupo_Waitahanui_met2<-method2(Taupo_Waitahanui_load, 3)
+Taupo_Waitahanui_met3<-method3(Taupo_Waitahanui_load, 3)
+Taupo_Waitahanui_met4<-method4(Taupo_Waitahanui_load, 3)
+Taupo_Waitahanui_met5<-method5(Taupo_Waitahanui_load, 3)
+Taupo_Waitahanui_met6<-method6(Taupo_Waitahanui_load, 3)
+Taupo_Waitahanui_all_methods<-(rbind(Taupo_Waitahanui_met1,
+                   Taupo_Waitahanui_met2,
+                   Taupo_Waitahanui_met3,
+                   Taupo_Waitahanui_met4,
+                   Taupo_Waitahanui_met5,
+                   Taupo_Waitahanui_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Compare results
+Taupo_Waitahanui_all_methods<-as.data.frame(Taupo_Waitahanui_all_methods) %>%
+  rownames_to_column("method")  %>%
+  mutate(method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+Taupo_Waitahanui_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Waitahanui (Taupo)")+
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Waitahanui_all_methods$TP_mgL*10^-6,1), vjust=1.5)
+
+Taupo_Waitahanui_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Waitahanui (Taupo)")+
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Waitahanui_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+Taupo_Waitahanui_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  ggtitle("Waitahanui (Taupo)")+
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Taupo_Waitahanui_all_methods$DOC_mgL*10^-6,1), vjust=1.5)
+
+```
+
+##### *Method 6 - all tribs*
+```{r, method 6 acton, include=FALSE}
+#Trips with C, N, P
+Taupo_met6_A<-rbind(Taupo_Hinemaiaia_met6,
+                  Taupo_Tauranga_met6,
+                  Taupo_Kuratau_met6,
+                  Taupo_Mapara_met6,
+                  Taupo_Waihaha_met6,
+                  Taupo_Waitahanui_met6)
+Taupo_met6_A<-as.data.frame(Taupo_met6_A) %>%
+  rownames_to_column("tributary")  %>%
+    mutate(tributary=factor(tributary,
+                       labels=c("Hinemaiaia","Tauranga","Kuratau",
+                                "Mapara","Waihaha","Waitahanui")),
+           DOC_molL=DOC_mgL/12,
+           TP_molL=TP_mgL/31,
+           DOC_TP_molmol= DOC_molL/TP_molL)
+
+
+#Tribs without DOC
+Taupo_met6_B<-rbind(Taupo_TokaanuPowerStation_met6,
+                    Taupo_Tongariro_met6,
+                    Taupo_Whareroa_met6,
+                    Taupo_Whangamata_met6,
+                    Taupo_Whanganui_met6)
+Taupo_met6_B<-as.data.frame(Taupo_met6_B) %>%
+  rownames_to_column("tributary")  %>%
+    mutate(tributary=factor(tributary,
+                       labels=c("Tokaanu Power Station","Tongariro","Whareroa",
+                                "Whangamata","Whanganui")),
+           DOC_mgL=NA,
+           DOC_molL=DOC_mgL/12,
+           TP_molL=TP_mgL/31,
+           DOC_TP_molmol= DOC_molL/TP_molL)
+
+
+Taupo_met6<-rbind(Taupo_met6_A, Taupo_met6_B)
+
+#All together
+Taupo_met6 %>% 
+  pivot_longer(-tributary) %>%
+    ggplot(aes(x=tributary, y=value*10^-6, fill=tributary)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("tributary") +
+  scale_y_continuous(expression(Nutrient~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("white","grey10","grey20","grey30","grey40","grey50",
+                               "grey60","grey70","grey80","grey90","black"))+
+  # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
+  ggtitle("Taupo Lake loads")+
+  facet_wrap(.~name, nrow=3, scales="free_y")
+
+#Just TN
+Taupo_met6 %>%
+  ggplot(aes(x=tributary, y=TN_mgL*10^-6, fill=tributary)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("tributary") +
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma,
+                     limits = c(0,1200))+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("white","grey10","grey20","grey30","grey40","grey50",
+                               "grey60","grey70","grey80","grey90","black"))+
+  geom_text(label=round(Taupo_met6$TN_mgL*10^-6,1), vjust=-1.5)+
+  ggtitle("Taupo Lake loads")
+
+#Just TP
+Taupo_met6 %>%
+  ggplot(aes(x=tributary, y=TP_mgL*10^-6, fill=tributary)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("tributary") +
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma,
+                     limits = c(0,120))+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("white","grey10","grey20","grey30","grey40","grey50",
+                               "grey60","grey70","grey80","grey90","black"))+
+  geom_text(label=round(Taupo_met6$TP_mgL*10^-6,1), vjust=-1.5)+
+  ggtitle("Taupo Lake loads")
+
+#Just DOC
+Taupo_met6 %>%
+  ggplot(aes(x=tributary, y=DOC_mgL*10^-6, fill=tributary)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("tributary") +
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma,
+                     limits = c(0,1000))+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("white","grey10","grey20","grey30","grey40","grey50",
+                               "grey60","grey70","grey80","grey90","black"))+
+  geom_text(label=round(Taupo_met6$DOC_mgL*10^-6,1), vjust=-1.5)+
+  ggtitle("Taupo Lake loads")
+
+#DOC:TP
+Taupo_met6 %>%
+  ggplot(aes(x=tributary, y=DOC_TP_molmol, fill=tributary)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("tributary") +
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("white","grey10","grey20","grey30","grey40","grey50",
+                               "grey60","grey70","grey80","grey90","black"))+
+  ggtitle("Taupo Lake loads")
+
+
+taupo_load_summary<-Taupo_met6 %>%
+  summarize(TP_mgL=sum(TP_mgL, na.rm=TRUE),
+            DOC_mgL=sum(DOC_mgL, na.rm=TRUE),
+            TN_mgL=sum(TN_mgL, na.rm=TRUE))%>%
+  mutate(DOC_molL=DOC_mgL/12,
+         TP_molL=TP_mgL/31,
+         DOC_TP_molmol= DOC_molL/TP_molL,
+         DOC_TP_massmass = DOC_mgL/TP_mgL) %>%
+  select(-DOC_molL, -TP_molL) %>%
+  mutate(lakeName="Taupo")
+
+
+
+#Totals and ratio
+taupo_load_summary %>%
+  # summarize_at(vars(TP_mgL:DOC_TP_molmol), sum, na.rm=TRUE) %>%
+  # select(-DOC_molL, -TP_molL) %>%
+  mutate(`TP (kg)`=comma(TP_mgL*10^-6),
+         `TN (kg)`=comma(TN_mgL*10^-6),
+         `DOC (kg)`=comma(DOC_mgL*10^-6),
+         `DOC:TP (mol:mol)`= comma(DOC_TP_molmol),
+         `DOC:TP (mass:mass)`=comma(DOC_TP_massmass))%>%
+  select(-DOC_mgL, -TP_mgL, -TN_mgL, -DOC_TP_molmol, -DOC_TP_massmass) %>%
+  hux() %>% 
+  # add_colnames() %>% 
+  set_bold(row = 1, col = everywhere, value = TRUE) %>% 
+  set_all_borders(TRUE) %>%
+  theme_plain()
+
+
+```
+
+
+### The Loch loads
+```{r, Mueggelsee loads}
+#Calculate loads
+Loch_inlet_load <- Loch_inlet_load %>%
+  as.data.frame() #RiverLoads doesn't like tibble apparently
+
+Loch_load_manual2<- imputeTS::na_interpolation(Loch_inlet_load, "linear") %>%
+  arrange(datetime) %>%
+  select(datetime, flow, DOC_mgL, TP_mgL) %>%
+  mutate(DOC_load_gday=DOC_mgL*flow*86400) %>%   #mg/L = g/m3. So m3 cancels out and you multiply by 86400 s in a day and divide by 1000g per kg to day kg/day. 
+  summarize(DOC_load_g_total=sum(DOC_load_gday))
+
+
+Loch_inlet_met1<-method1(Loch_inlet_load, 3)
+Loch_inlet_met2<-method2(Loch_inlet_load, 3)
+Loch_inlet_met3<-method3(Loch_inlet_load, 3)
+Loch_inlet_met4<-method4(Loch_inlet_load, 3)
+Loch_inlet_met5<-method5(Loch_inlet_load, 3)
+Loch_inlet_met6<-method6(Loch_inlet_load, 3)
+Loch_inlet_all_methods<-(rbind(Loch_inlet_met1,
+                   Loch_inlet_met2,
+                   Loch_inlet_met3,
+                   Loch_inlet_met4,
+                   Loch_inlet_met5,
+                   Loch_inlet_met6))
+                   # *(10^-6)) #Estimates in kg per period
+
+#Relationship between flow and concentrations
+CQregression(Loch_inlet_load, 3)
+#Inspect the R2 between concentration and flow in the different months and years
+rsquared.period(Loch_inlet_load, 3, "year")
+
+#Compare results
+Loch_inlet_all_methods<-as.data.frame(Loch_inlet_all_methods) %>%
+  rownames_to_column("method")  %>%
+    mutate(DOC_molL=DOC_mgL/12,
+         TP_molL=TP_mgL/31,
+         DOC_TP_molmol= DOC_molL/TP_molL,
+         method=factor(method,
+                       labels=c("Method 1","Method 2","Method 3",
+                                "Method 4","Method 5","Method 6")))
+
+DOC<-Loch_inlet_all_methods %>%
+  ggplot(aes(x=method, y=DOC_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity", color="black") +
+  xlab("Method") +
+  scale_y_continuous(expression(DOC~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1))+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Loch_inlet_all_methods$DOC_mgL*10^-6,1), vjust=1.5)
+
+
+TP<-Loch_inlet_all_methods %>%
+  ggplot(aes(x=method, y=TP_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  scale_y_continuous(expression(TP~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Loch_inlet_all_methods$TP_mgL*10^-6,3), vjust=1.5)
+
+TDN<-Loch_inlet_all_methods %>%
+  ggplot(aes(x=method, y=TN_mgL*10^-6, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  scale_y_continuous(expression(TN~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Loch_inlet_all_methods$TN_mgL*10^-6,1), vjust=1.5)
+
+
+DOC_TP<-Loch_inlet_all_methods %>%
+  ggplot(aes(x=method, y=DOC_TP_molmol, fill=method)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Method") +
+  scale_y_continuous(expression(DOC:TP~load~(mol:mol)), labels = scales::comma )+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+          axis.title.x=element_blank())+
+  scale_fill_manual(values=c("grey10","grey20","grey30","grey40","grey50","grey50"),
+    labels=c("Method 1: time-weighted Q and C",
+                             "Method 2: discharge-weighted C", 
+                             "Method 3: mean discharge-weighted C", 
+                             "Method 4: time-weighted C", 
+                             "Method 5: time and discharge weighted", 
+                             "Method 6: linear interpolation of C"))+
+  geom_text(label=round(Loch_inlet_all_methods$DOC_TP_molmol,1), vjust=1.5)
+
+(DOC+TP+TDN)/DOC_TP+
+plot_layout(guides = 'collect')
+
+
+```
+
+##### *Method 6 *
+```{r, method 6 theloch, include=FALSE}
+
+Loch_inlet_met6<-as.data.frame(Loch_inlet_met6) %>%
+  rownames_to_column("nutrient") %>%
+  rename(value=Loch_inlet_met6)
+
+Loch_inlet_met6 %>% 
+    ggplot(aes(x=nutrient, y=value*10^-6, fill=nutrient)) +
+  geom_bar(stat="identity",color="black") +
+  xlab("Nutrient") +
+  scale_y_continuous(expression(Nutrient~load~(kg)), labels = scales::comma)+
+    theme(axis.text.x=element_text(angle = 45, hjust = 1),
+        legend.position="none")+
+    scale_fill_manual(values=c("grey20","grey50","grey90"))+
+  # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
+  ggtitle("Icy Brook (The Loch)")
+
+
+loch_load_summary<-Loch_inlet_met6 %>%
+  pivot_wider(names_from="nutrient",values_from="value") %>%
+  summarize_at(vars(DOC_mgL:TP_mgL), sum, na.rm=TRUE) %>%
+  mutate(lakeName="TheLoch") %>%
+    mutate(DOC_molL=DOC_mgL/12,
+         TP_molL=TP_mgL/31,
+         DOC_TP_molmol= DOC_molL/TP_molL,
+         DOC_TP_massmass = DOC_mgL/TP_mgL) %>%
+  select(-DOC_molL, -TP_molL)
+
+
+#Totals and ratio
+loch_load_summary%>%
+  mutate(`TP (g)`=comma(TP_mgL/1000),
+         `TN (g)`=comma(TN_mgL/1000),
+         `DOC (g)`=comma(DOC_mgL/1000),
+         `DOC:TP (mol:mol)`= comma(DOC_TP_molmol))%>%
+  select(-DOC_mgL, -TP_mgL, -TN_mgL, -DOC_TP_molmol, -DOC_TP_massmass) %>%
+  hux() %>% 
+  # add_colnames() %>% 
+  set_bold(row = 1, col = everywhere, value = TRUE) %>% 
+  set_all_borders(TRUE) %>%
+  theme_plain()
+
+```
+
+### Zwart loads
+```{r, zwart loads, include=FALSE}
+# Units for nutrient load files = kg/day for TP, TN, DOC and m3/s for inflow
+zwart_load_trim <- zwart_load %>%
+  select(lake, date, inflow, TN_load, TP_load, DOC_load) %>%
+  # filter(!lake %in% c("Acton")) %>%#exclude Acton because we have new data
+  rename(lakeName=lake)
+glimpse(zwart_load_trim)
+
+
+
+zwart_load_summary<-zwart_load_trim %>%
+  group_by(lakeName) %>%
+  summarize(TN_load=mean(TN_load, na.rm=TRUE),
+            TP_load=mean(TP_load, na.rm=TRUE),
+            DOC_load=mean(DOC_load, na.rm=TRUE)) %>%
+  mutate(DOC_molL=DOC_load / 12 * 1000 ,
+         TP_molL=TP_load / 31 * 1000 ,
+         DOC_TP_molmol= DOC_molL/TP_molL,
+         DOC_TP_massmass= DOC_load/TP_load) %>%
+  select(-DOC_molL, -TP_molL) %>%
+  rename(DOC_load_kg=DOC_load,
+         TN_load_kg=TN_load,
+         TP_load_kg=TP_load)
+
+
+#Totals and ratio-- TABLE
+zwart_load_summary%>%
+  mutate(`TP (kg)`=comma(TP_load_kg),
+         `TN (kg)`=comma(TN_load_kg),
+         `DOC (kg)`=comma(DOC_load_kg),
+         `DOC:TP (mol:mol)`= comma(DOC_TP_molmol),
+         `DOC:TP (mass:mass)`= comma(DOC_TP_massmass))%>%
+  select(-DOC_load_kg, -TP_load_kg, -TN_load_kg, -DOC_TP_molmol, -DOC_TP_massmass) %>%
+  hux() %>% 
+  # add_colnames() %>% 
+  set_bold(row = 1, col = everywhere, value = TRUE) %>% 
+  set_all_borders(TRUE) %>%
+  theme_plain()
+
+
+```
+
+### Estimated loads
+```{r}
+load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20210406.csv'), header=T,sep=",") 
+load_estimates_huisman <- load_estimates_huisman %>%
+  pivot_longer(-variable)
+
+load_estimates_huisman_P <- load_estimates_huisman %>%
+  filter(variable=="TP_mgm3") %>%
+  rename(lakeName=name,
+         TP_mgm3=value) %>%
+  select(-variable)
+load_estimates_huisman_C <- load_estimates_huisman %>%
+  filter(variable=="DOC_gm3") %>%
+  rename(lakeName=name,
+         DOC_gm3=value) %>%
+  select(-variable)
+load_estimates_huisman<-full_join(load_estimates_huisman_P, load_estimates_huisman_C, by="lakeName") %>% arrange(lakeName)
+View(load_estimates_huisman)
+```
+
+# ALL LOADS - ALL LAKES
+Real data only
+```{r}
+
+##Total and ratios-- Graph
+master<-bind_rows(
+          loch_load_summary,
+          mueggelsee_load_summary,
+          taupo_load_summary,
+          acton_load_summary) %>%
+  mutate(TN_load_kg=TN_mgL*10^-6,
+         TP_load_kg=TP_mgL*10^-6,
+         DOC_load_kg=DOC_mgL*10^-6) %>%
+  select(lakeName:DOC_load_kg) %>%
+  bind_rows(.,zwart_load_summary)
+
+master%>%
+  pivot_longer(-lakeName) %>%
+  filter(name %in% c("DOC_TP_molmol","DOC_TP_massmass"))%>%
+  ggplot(aes(x=lakeName,y=value,fill=name))+
+  geom_bar(stat="identity",color="black") +
+  facet_wrap(.~name, scales="free_y") +
+    theme(legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=8))
+
+#In the Kelly model they actually used DOCmgL/TP_ugL
+master%>%
+  mutate(DOC_TP_mgug=DOC_load_kg/(TP_load_kg*1000))%>%
+  ggplot(aes(x=lakeName,y=DOC_TP_mgug,fill=lakeName))+
+  geom_bar(stat="identity",color="black") +
+    theme(legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=8))
+
+
+#DOC versus TP load
+master%>%
+  ggplot(aes(x=DOC_load_kg,y=TP_load_kg/1000,fill=lakeName))+
+  geom_point(shape=21, size=3)+
+  xlab("Total DOC load (kg)")+
+  ylab("Total TP load (g)")+
+  theme(legend.position="none")+
+  # scale_y_log10(breaks = c(1, 10, 100, 1000, 10000, 100000))+
+  scale_x_log10(breaks = c(1, 10, 100, 1000, 10000, 100000))+
+    geom_text_repel(aes(label = lakeName), size = 3)+
+  ggtitle("Note scale differences between axes")+
+  theme_bw()+
+  theme(legend.position = "none")
+```
+
+#### Compare Zwart model vs. measured - inflow concentrations
+```{r, echo=FALSE}
+
+
+zwart_load_comparison<-zwart_load_trim %>%
+  mutate(TP_mgm3=(TP_load/inflow)*(1000000/86400),
+         DOC_gm3=(DOC_load/inflow)*(1000/86400)) %>%
+  group_by(lakeName) %>%
+  summarize(TP_mgm3=mean(TP_mgm3, na.rm=TRUE),
+            DOC_gm3=mean(DOC_gm3, na.rm=TRUE)) %>%
+  mutate(TP_gm3 = TP_mgm3/1000,
+         DOC_TP_massmass= DOC_gm3/TP_gm3) %>%
+  mutate(dataset="measured")
+
+
+huisman_load_comparison <-load_estimates_huisman %>%
+    mutate(TP_gm3=TP_mgm3/1000,
+         DOC_TP_massmass=DOC_gm3/TP_gm3)%>%
+  mutate(dataset="modelled")
+
+additional_comparison<-bind_rows(loch_load_summary,
+mueggelsee_load_summary,
+taupo_load_summary,
+acton_load_summary) %>%
+  mutate(dataset="measured")
+
+compare_load_methods<-bind_rows(zwart_load_comparison,huisman_load_comparison,additional_comparison)
+compare_load_methods %>%
+  select(lakeName, dataset, DOC_TP_massmass) %>%
+  pivot_wider( names_from="dataset", values_from="DOC_TP_massmass", values_fn=mean) %>%
+    ggplot(aes(x=measured, y=modelled/1000, fill=lakeName))+
+  geom_point(shape=21, size=3)+
+  scale_y_continuous(expression(DOC~to~TP~load~(modelled)), labels = scales::comma)+
+  scale_x_continuous(expression(DOC~to~TP~load~(measured)), labels = scales::comma)+
+  geom_abline(intercept = 0, slope = 1)+
+  theme_bw()+
+    theme(legend.position="none")+
+    geom_label_repel(aes(x=measured, y=modelled/1000, label = lakeName),
+                   fill = "black",color="white", 
+                   size = 2.5)+
+  scale_fill_viridis_d()+
+  scale_color_viridis_d()
+```
+
+Linear model for all lakes
+```{r, echo=TRUE, tidy=TRUE}
+lm_data<-compare_load_methods %>%
+  select(lakeName, dataset, DOC_TP_massmass ) %>%
+  pivot_wider(names_from="dataset", values_from="DOC_TP_massmass", values_fn=mean)
+lm<-lm(modelled~measured, data=lm_data)
+summary(lm)
+```
+
+Linear model excluding lakes that fall far from the 1:1 line (perhaps these lakes have something in common?)
+```{r, echo=TRUE, tidy=TRUE}
+lm_data2<-compare_load_methods %>%
+  select(lakeName, dataset, DOC_TP_massmass ) %>%
+  filter(!lakeName %in% c("Harp","Vortsjarv","Mangstrettjarn","Langtjern"))%>%
+  pivot_wider( names_from="dataset", values_from="DOC_TP_massmass", values_fn=mean) 
+lm2<-lm(modelled~measured, data=lm_data2)
+summary(lm2)
+
+
+##HERE I was nervous about the different C:P estimates when using DOC and TP loads in kg/day 
+##compared to DOC and TP mean daily inflow concentrations. They are tightly related, thankfully. 
+# test1<-zwart_load_comparison %>%
+#   select(lakeName,DOC_TP_massmass) %>%
+#   rename(mass_ratios=DOC_TP_massmass)
+# test2<-zwart_load_summary%>%
+#   select(lakeName,DOC_TP_massmass) %>%
+#   rename(load_ratios=DOC_TP_massmass)
+# testing<-left_join(test1,test2,by="lakeName")
+# summary(lm(mass_ratios~load_ratios, data=testing))
+# 
+# testing %>%
+#     ggplot(aes(x=mass_ratios, y=load_ratios, fill=lakeName))+
+#   geom_point(shape=21, size=3)+
+#   scale_y_continuous(expression(DOC~to~TP~load~(load)), labels = scales::comma)+
+#   scale_x_continuous(expression(DOC~to~TP~load~(mass)), labels = scales::comma)+
+#   geom_abline(intercept = 0, slope = 1)+
+#   theme_bw()+
+#     theme(legend.position="none")+
+#   scale_fill_viridis_d()+
+#   scale_color_viridis_d()
+
+```
+
+### Compare model vs. measured loads
+***I'm stuck here, don't think this is right***
+```{r}
+
+loch_loads_kg<-Loch_inlet_met6 %>%
+  pivot_wider(names_from="nutrient",values_from="value") %>%
+  summarize_at(vars(DOC_mgL:TP_mgL), mean, na.rm=TRUE) %>%
+  mutate(lakeName="TheLoch") %>%
+    mutate(DOC_load_kg=DOC_mgL*10^-6,
+         TP_load_kg=TP_mgL*10^-6) %>%
+  select(-DOC_mgL, -TP_mgL, -TN_mgL)
+
+meuggelsee_loads_kg<- mueggelsee_met6%>%
+  pivot_wider(names_from="nutrient",values_from="value") %>%
+  summarize_at(vars(DOC_mgL:TP_mgL), mean, na.rm=TRUE) %>%
+  mutate(lakeName="Mueggelsee") %>%
+    mutate(DOC_load_kg=DOC_mgL*10^-6,
+         TP_load_kg=TP_mgL*10^-6) %>%
+  select(-DOC_mgL, -TP_mgL, -TN_mgL)
+
+taupo_loads_kg<- Taupo_met6 %>%
+  summarize(TP_mgL=sum(TP_mgL, na.rm=TRUE),
+            DOC_mgL=sum(DOC_mgL, na.rm=TRUE))%>%
+  mutate(lakeName="Taupo") %>%
+    mutate(DOC_load_kg=DOC_mgL*10^-6,
+         TP_load_kg=TP_mgL*10^-6) %>%
+  select(-DOC_mgL, -TP_mgL)
+
+zwart_loads_kg<-zwart_load_trim %>%
+  group_by(lakeName) %>%
+  summarize(TP_load_kg=mean(TP_load, na.rm=TRUE),
+            DOC_load_kg=mean(DOC_load, na.rm=TRUE)) 
+
+measured_loads_kg<-bind_rows(zwart_loads_kg,loch_loads_kg,meuggelsee_loads_kg,taupo_loads_kg) %>%
+  mutate(dataset="measured")
+
+modelled_loads_kg<-left_join(load_estimates_huisman,metadata %>%
+                  select(lakeName,`Volume (m3)`, `Lake residence time (year)`), by="lakeName") %>%
+      rename(HRT_days=`Lake residence time (year)`,
+             V=`Volume (m3)`) %>%
+      mutate(HRT_days=HRT_days/365,
+             Qin=V/HRT_days,
+             TP_load_kg=TP_mgm3*Qin*(1/1000),#I'm just assuming here that TP_mgm3 is really gm3
+             DOC_load_kg=DOC_gm3*Qin*(1/1000),
+             dataset="modelled")
+
+bind_rows(measured_loads_kg,modelled_loads_kg) %>%
+  select(lakeName, dataset, TP_load_kg, DOC_load_kg) %>%
+  pivot_wider( names_from="dataset", values_from=c("TP_load_kg","DOC_load_kg"))%>%
+  ggplot(aes(x=TP_load_kg_measured, y=TP_load_kg_modelled, fill=lakeName))+
+  geom_point(shape=21, size=3)+
+  # scale_y_continuous(expression(DOC~to~TP~load~(modelled)), labels = scales::comma)+
+  scale_y_continuous(expression(TP~(modelled)), labels = scales::comma)+
+  geom_abline(intercept = 0, slope = 1)+
+  theme_bw()+
+    theme(legend.position="none")+
+    # geom_label_repel(aes(x=measured, y=modelled/1000, label = lakeName),
+    #                fill = "black",color="white", 
+    #                size = 2.5)+
+  scale_fill_viridis_d()+
+  scale_color_viridis_d()
+
+
+bind_rows(measured_loads_kg,modelled_loads_kg) %>%
+  select(lakeName, dataset, TP_load_kg, DOC_load_kg) %>%
+  pivot_wider( names_from="dataset", values_from=c("TP_load_kg","DOC_load_kg"))%>%
+  ggplot(aes(x=DOC_load_kg_measured, y=DOC_load_kg_modelled, fill=lakeName))+
+  geom_point(shape=21, size=3)+
+  scale_x_continuous(expression(DOC~(measured)), labels = scales::comma)+
+  scale_y_continuous(expression(DOC~(modelled)), labels = scales::comma)+
+  geom_abline(intercept = 0, slope = 1)+
+  theme_bw()+
+    theme(legend.position="none")+
+    # geom_label_repel(aes(x=measured, y=modelled/1000, label = lakeName),
+    #                fill = "black",color="white", 
+    #                size = 2.5)+
+  scale_fill_viridis_d()+
+  scale_color_viridis_d()
+```

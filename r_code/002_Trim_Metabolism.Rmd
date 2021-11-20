@@ -1,0 +1,733 @@
+---
+title: "002_Trim_Metabolism"
+author: "Bella Oleksy"
+date: "3/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_knit$set(root.dir='..')
+knitr::opts_chunk$set(out.width = '50%',fig.height=10) 
+# knitr::opts_chunk$set(
+#  fig.width = 6,
+#  fig.asp = 0.8,
+#  out.width = "80%"
+# )
+library(here)
+source(here("r_code/librariesAndFunctions.R"))
+
+
+```
+
+
+## Trimming metabolism
+
+Here, I am experimenting with trimming down the GPP results and seeing how it changes the mean/median estimates for each lake 
+
+
+```{r load raw metab, include=FALSE}
+
+# Pull in metab data
+source(here("r_code/dataPullMetab.R"))
+
+rm(cur)
+rm(dontuse)
+rm(MueggelseeZMix)
+
+#Read in metadata google sheet
+metadata<-read_sheet("https://docs.google.com/spreadsheets/d/1is87WT3n_TU76pTyiis3Os08JJiSmWc2G6K4bthJhU8/edit#gid=952562522") 
+
+#and join
+
+bella_metab_withMetaData <- left_join(bella_metab, metadata, by = c('lakeName'))
+
+
+
+```
+
+
+```{r echo=FALSE}
+##SUMMER ONLY
+# Trim to only "summer" dates. In the northern hemisphere this is June1-Sept1, and in the southern hemisphere this is Dec1-April1. 
+bella_metab_withMetaData<- bella_metab_withMetaData %>%
+  select(solarDay, lakeName, GPP_mgCm2, `Latitude (decimal degrees)`) %>%
+  mutate(year=year(solarDay),
+         DOY=yday(solarDay), 
+         hemisphere = ifelse(`Latitude (decimal degrees)` < 0, #Assign northern or southern hemisphere
+                        "southern", 
+                        "northern")) %>% 
+  mutate(summer_start = ifelse(hemisphere=="northern",
+                        152, #June 1 - summer start n. hemisphere
+                        335), #Dec 1 -  summer start s. hemisphere
+         summer_end = ifelse(hemisphere=="northern",
+                        244, #Sept 1 - summer end n. hemisphere
+                        91)) #April 1- summer end s. hemisphere
+
+#Divide into two dataframes by hemisphere, otherwise couldn't get case_when() to work 
+bella_metab_withMetaData_northern<- bella_metab_withMetaData %>%
+  filter(hemisphere=="northern")%>%
+  mutate(season = case_when(hemisphere=="northern" & DOY > summer_start & DOY < summer_end ~ "summer",  # specify when the "summer" season 
+                            hemisphere=="northern" & DOY >= 121 & DOY <= 152 | DOY >= 244 & DOY < 274 ~ "+", # specify when the "+" season
+                            T ~ "other"))  # all others = "other"
+  
+bella_metab_withMetaData_southern<- bella_metab_withMetaData %>%
+  filter(hemisphere=="southern")%>%
+  mutate(season = case_when(hemisphere=="southern" & DOY > summer_start | DOY < summer_end ~ "summer",# specify when the "summer" season 
+                            hemisphere=="southern" & DOY >= 91 & DOY <= 121 | DOY >= 305 & DOY < 335 ~ "+", # specify when the "+" season
+                            T ~ "other"))  
+
+bella_metab_withMetaData <- bind_rows(bella_metab_withMetaData_northern,bella_metab_withMetaData_southern)
+
+bella_metab_summer<-bella_metab_withMetaData %>%
+  filter(season=="summer")
+
+##EXTENDED SUMMER -- add a month on either end
+# Trim to only "summer" dates. In the northern hemisphere this is June1-Sept1, and in the southern hemisphere this is Dec1-April1. 
+bella_metab_withMetaData_extendedSummer<- bella_metab_withMetaData %>%
+  select(solarDay, lakeName, GPP_mgCm2, `Latitude (decimal degrees)`) %>%
+  mutate(year=year(solarDay),
+         DOY=yday(solarDay), 
+         hemisphere = ifelse(`Latitude (decimal degrees)` < 0, #Assign northern or southern hemisphere
+                        "southern", 
+                        "northern")) %>% 
+  mutate(summer_start = ifelse(hemisphere=="northern",
+                        121, #May 1 - summer start n. hemisphere
+                        305), #Nov 1 -  summer start s. hemisphere
+         summer_end = ifelse(hemisphere=="northern",
+                        274, #Oct 1 - summer end n. hemisphere
+                        121)) #May 1- summer end s. hemisphere
+
+#Divide into two dataframes by hemisphere, otherwise couldn't get case_when() to work 
+bella_metab_withMetaData_northern_extendedSummer<- bella_metab_withMetaData_extendedSummer %>%
+  filter(hemisphere=="northern")%>%
+  mutate(season = case_when(hemisphere=="northern" & DOY > summer_start & DOY < summer_end ~ "summer",
+                            T ~ "other"))  # specify when the "summer" season is in effect in either hemisphere
+bella_metab_withMetaData_southern_extendedSummer<- bella_metab_withMetaData_extendedSummer %>%
+  filter(hemisphere=="southern")%>%
+  mutate(season = case_when(hemisphere=="southern" & DOY > summer_start | DOY < summer_end ~ "summer",
+                            T ~ "other"))  # specify when the "summer" season is in effect in either hemisphere
+
+bella_metab_withMetaData_extendedSummer <- bind_rows(bella_metab_withMetaData_northern_extendedSummer,
+                                                     bella_metab_withMetaData_southern_extendedSummer)
+
+bella_metab_extendSummer<-bella_metab_withMetaData_extendedSummer %>%
+  filter(season=="summer")
+
+#Summarie the raw dataframe
+bella_metab_summary <- bella_metab %>%
+  group_by(lakeName) %>% 
+  summarise(n=n(),
+            n_NAs=sum(is.na(GPP_mgCm2)),
+            mean= mean(GPP_mgCm2, na.rm = T) , 
+            median = median(GPP_mgCm2, na.rm= T),
+            sdGPP= sd(GPP_mgCm2, na.rm = T)) %>% 
+  mutate(seGPP=sdGPP/sqrt(n),
+         GPP5=mean+qnorm(0.05)*seGPP,
+         GPP25=mean+qnorm(0.25)*seGPP,
+         GPP50=mean+qnorm(0.5)*seGPP,
+         GPP75=mean+qnorm(0.75)*seGPP,
+         GPP95=mean+qnorm(0.95)*seGPP,
+         dataset="raw") 
+
+bella_metab_summary_long<-bella_metab_summary %>%
+    pivot_longer(-c(lakeName, dataset), names_to="variable",
+               values_to="value")
+
+
+#Summarize the "summer only" dataframe
+bella_metab_summer_summary <- bella_metab_summer %>%
+  group_by(lakeName) %>% 
+  summarise(n=n(),
+            n_NAs=sum(is.na(GPP_mgCm2)),
+            mean= mean(GPP_mgCm2, na.rm = T) , 
+            median = median(GPP_mgCm2, na.rm= T),
+            sdGPP= sd(GPP_mgCm2, na.rm = T)) %>% 
+  mutate(seGPP=sdGPP/sqrt(n),
+         GPP5=mean+qnorm(0.05)*seGPP,
+         GPP25=mean+qnorm(0.25)*seGPP,
+         GPP50=mean+qnorm(0.5)*seGPP,
+         GPP75=mean+qnorm(0.75)*seGPP,
+         GPP95=mean+qnorm(0.95)*seGPP,
+         dataset="summer") 
+
+bella_metab_summer_summary_long<- bella_metab_summer_summary %>%
+    pivot_longer(-c(lakeName, dataset), names_to="variable",
+               values_to="value")
+
+#Summarize the "extended summer" dataframe
+
+bella_metab_extendSummer_summary <- bella_metab_extendSummer %>%
+  group_by(lakeName) %>% 
+  summarise(n=n(),
+            n_NAs=sum(is.na(GPP_mgCm2)),
+            mean= mean(GPP_mgCm2, na.rm = T) , 
+            median = median(GPP_mgCm2, na.rm= T),
+            sdGPP= sd(GPP_mgCm2, na.rm = T)) %>% 
+  mutate(seGPP=sdGPP/sqrt(n),
+         GPP5=mean+qnorm(0.05)*seGPP,
+         GPP25=mean+qnorm(0.25)*seGPP,
+         GPP50=mean+qnorm(0.5)*seGPP,
+         GPP75=mean+qnorm(0.75)*seGPP,
+         GPP95=mean+qnorm(0.95)*seGPP,
+         dataset="summer+") 
+
+bella_metab_extendSummer_summary_long<- bella_metab_extendSummer_summary %>%
+    pivot_longer(-c(lakeName, dataset), names_to="variable",
+               values_to="value")
+
+#Create first comparison dataframe
+comparison1<-bind_rows(bella_metab_summary, bella_metab_summer_summary)
+comparison2<-bind_rows(bella_metab_summary, bella_metab_summer_summary,bella_metab_extendSummer_summary)
+comparison1_long<-bind_rows(bella_metab_summary_long, bella_metab_summer_summary_long)
+comparison2_long<-bind_rows(bella_metab_summary_long, bella_metab_summer_summary_long,bella_metab_extendSummer_summary_long)
+```
+
+
+### Boxplots - summer only versus un-trimmed
+Most, but not all, lakes end up having higher GPP overall if we trim to summer. Note that Prairie Lake drops out because there are only about 2 weeks of data for this lake, and it doesn't fall in the "summer" window.
+```{r, out.width = '100%',fig.height=15}
+
+# comparison1 %>%
+#   ggplot(aes(x=dataset, y=mean, fill=dataset))+
+#   geom_boxplot(aes(ymin = GPP5,
+#                    lower = GPP25,
+#                    middle = GPP50,
+#                    upper = GPP75,
+#                    ymax = GPP95),
+#                stat='identity')+
+#   ggtitle("Boxplot comparisons")+
+#   ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+#   theme_bw()+
+#     scale_fill_manual(values=c("red","blue"))+
+#   facet_wrap(.~lakeName, scales="free", ncol=5)+
+#   theme(legend.position="none",
+#         axis.title.x=element_blank())
+
+
+comparison2 %>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Boxplot comparisons")+
+  ylab(expression(paste('GPP (mg C m'^-2,' day'^-1,')')))+
+  theme_bw()+
+  scale_fill_manual(values=c("red","blue","green"))+
+  facet_wrap(.~lakeName, scales="free", ncol=5)+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+```
+
+
+<!-- ### Looking just at median and mean values -->
+<!-- Most of the time, the median is quite a bit lower than the mean. This is the case in the "raw" and "trimmed" dataset -->
+<!-- ```{r, out.width = '100%',fig.height=15} -->
+<!-- #  -->
+<!-- # comparison1_long %>%  -->
+<!-- #   filter(variable %in% c("mean","median"))%>% -->
+<!-- #   ggplot(aes(x=variable, y=value, fill=dataset, shape=variable))+ -->
+<!-- #   geom_point(size=3)+ -->
+<!-- #   scale_shape_manual(values=c(21,25), -->
+<!-- #                      name="Variable")+ -->
+<!-- #   scale_fill_manual(values=c("red","blue"))+ -->
+<!-- #   ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+ -->
+<!-- #   ggtitle("Mean and median comparisons")+ -->
+<!-- #   theme_bw()+ -->
+<!-- #   facet_wrap(.~lakeName, scales="free", ncol=5)+ -->
+<!-- #   guides(fill = guide_legend(override.aes=list(shape=21)))+ -->
+<!-- #   theme(axis.title.x=element_blank(), -->
+<!-- #         legend.position="top") -->
+
+<!-- comparison2_long %>%  -->
+<!--   filter(variable %in% c("mean","median"))%>% -->
+<!--   ggplot(aes(x=variable, y=value, fill=dataset, shape=variable))+ -->
+<!--   geom_point(size=3)+ -->
+<!--   scale_shape_manual(values=c(21,25), -->
+<!--                      name="Variable")+ -->
+<!--   scale_fill_manual(values=c("red","blue","green"))+ -->
+<!--   ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+ -->
+<!--   ggtitle("Mean and median comparisons")+ -->
+<!--   theme_bw()+ -->
+<!--   facet_wrap(.~lakeName, scales="free", ncol=5)+ -->
+<!--   guides(fill = guide_legend(override.aes=list(shape=21)))+ -->
+<!--   theme(axis.title.x=element_blank(), -->
+<!--         legend.position="top") -->
+
+<!-- ``` -->
+
+# Comparison across lakes
+How does this change the distribution of GPP across lakes? 
+
+```{r echo=FALSE, fig.height=4, out.width='100%'}
+bella_metab_summary %>% 
+  rename(meanGPP=mean)%>%
+  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=meanGPP))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               fill="red",
+               stat='identity')+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  ggtitle("Original data - not trimmed")+
+    theme_bw()+
+  theme(legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=6))+
+    scale_y_log10()
+  
+bella_metab_summer_summary %>% 
+    rename(meanGPP=mean)%>%
+  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=meanGPP))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               fill="blue",
+               stat='identity')+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  ggtitle("Daily values trimmed to summer")+
+    theme_bw()+
+  theme(legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=6))+
+    scale_y_log10()
+
+bella_metab_extendSummer_summary %>% 
+    rename(meanGPP=mean)%>%
+  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=meanGPP))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               fill="green",
+               stat='identity')+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  ggtitle("Daily values trimmed to summer + a month of either end")+
+    theme_bw()+
+  theme(legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=6))+
+    scale_y_log10()
+
+
+
+```
+
+It shuffles things around a little bit, but overall our top 5 most/least productive lakes are the same lakes. 
+
+Top 5 least productive (untrimmed): `r bella_metab_summary %>% arrange(GPP50) %>% select(lakeName) %>% slice_head(n=5)`
+Top 5 least productive (summer only): `r bella_metab_summer_summary %>% arrange(GPP50) %>% select(lakeName) %>% slice_head(n=5)`
+Top 5 least productive (extended summer): `r bella_metab_extendSummer_summary %>% arrange(GPP50) %>% select(lakeName) %>% slice_head(n=5)`
+
+
+Top 5 most productive (untrimmed): `r bella_metab_summary %>% arrange(desc(GPP50)) %>% select(lakeName) %>%  slice_head(n=5)`
+Top 5 most productive (summer only): `r bella_metab_summer_summary %>% arrange(desc(GPP50)) %>% select(lakeName) %>%  slice_head(n=5)`
+Top 5 most productive (extended summer): `r bella_metab_extendSummer_summary %>% arrange(desc(GPP50)) %>% select(lakeName) %>%  slice_head(n=5)`
+
+
+### Examine a few lakes more closely
+I wanted to start by looking at the a few lakes where GPP was lower after trimming
+
+<b>Balaton.</b> In this case, estimated GPP in the trimmed dataset is about <i>half</i> of the full dataset because we end up missing some high GPP days in late August/early September. 
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="Balaton")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Lake Balaton")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="Balaton")%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+
+<b>TheLoch.</b> In this case, estimated GPP in the trimmed dataset is about <i>half</i> of the full dataset because we end up missing some high GPP days in late August/early September. 
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="TheLoch")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("The Loch")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="TheLoch")%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+Knowing this lake pretty well (one of my dissertation lakes), I'm surprised to see a late season peak. Given that these rates are still quite low, I'm comfortable trimming the data to < Sept 1.
+
+
+<b>Trout Lake.</b> Overall this is a super unproductive lake, but with the Sept 1 cut-off we do see to miss part of a second "peak" in September. 
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="Trout")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Trout Lake")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="Trout")%>%
+  filter(GPP_mgm2<1)%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+
+
+<b>Little Rock Lake.</b>  This is a NEON lake, where they used DO profilers rather than stationary DO sensors (among other continuity issues with their wind, temp sensors), so I ended up with a pretty low number of days. 
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="LittleRock")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("LittleRock Lake")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="LittleRock")%>%
+  filter(GPP_mgm2<1)%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+<b>Trout Bog.</b> No discernable seasonal pattern here, but at least if we extend 'summer' out to Oct 1, we capture more of these relatively high GPP days.
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="TroutBog")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Trout Bog")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="TroutBog")%>%
+  filter(GPP_mgm2<1 & GPP_mgm2>0.01)%>% 
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+<b>Rotoiti</b>. Summer and summer+ estimates are identical because estimates for the shoulder season in this southern hemisphere lake are missing (Nov1-Dec and April1-May1). 
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison1 %>%
+  filter(lakeName=="Rotoiti")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Lake Rotoiti")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="Rotoiti")%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+
+
+### When trimming results in >> GPP
+Next I wanted to pull out a few lakes where trimming to 'summer' results in much higher estimates. 
+
+
+<b>Kentucky.</b> Since we have an entire year of data in this lake, trimming by date (June1-Sept1) does a pretty good job of characterizing "peak" productivity, though we do miss the rising and falling limbs. If we add in the shoulder season ("+") we get a bit more days (still missing some relatively high GPP days), which brings down the mean/median. 
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="Kentucky")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Kentucky Lake")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="Kentucky")%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+  scale_x_date(date_breaks = "5 weeks", date_labels = "%m-%d") +
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+
+
+<b>Prairie Pothole</b> This is a NEON lake, where they used DO profilers rather than stationary DO sensors (among other continuity issues with their wind, temp sensors), so I ended up with a pretty low number of days. GPP is highly variable. Note that whether or not we trim the data, this lake is still one of the top 5 most productive in the dataset, FWIW. This range is still huge, though, and given the high number of missing values I'm inclined to throw away this lake.
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="PrairiePothole")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Prairie Pothole")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="PrairiePothole")%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+<b>Annie.</b> Similar case to Kentucky, where the estimates go up quite a bit because we are cutting out the least productive times of year. We do end up missing some relatively high GPP days with the Sept 1 cut-off, however. Adding in the shoulder seasons helps capture a few more relatively high GPP days, but overall brings down the mean a tiny bit.
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="Annie")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Lake Annie")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="Annie")%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+
+<b>Taihu</b>. Similarly, by excluding Oct-January we are capturing the most productive time of year in this lake. 
+```{r, out.width = '100%',fig.height=5}
+
+boxplot<-comparison2 %>%
+  filter(lakeName=="Taihu")%>%
+  ggplot(aes(x=dataset, y=mean, fill=dataset))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ggtitle("Lake Taihu")+
+  ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    scale_fill_manual(values=c("red","blue","green"))+
+  theme(legend.position="none",
+        axis.title.x=element_blank())
+
+timeseries<-bella_metab_withMetaData %>%
+  filter(lakeName=="Taihu")%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()
+
+boxplot+timeseries +
+  plot_layout(widths = c(1, 2))
+```
+
+# Cutoff  for # of days missing
+"Summer" is `r 244-152` days long and "summer+"/"extended summer" is `r 274-121` days long.
+```{r, out.width = '100%',fig.height=5}
+# glimpse(comparison1)
+bella_metab_summer_summary %>%
+  filter(dataset=="summer") %>%
+  mutate(perc_missing_days=(n_NAs/91)*100)%>%
+  ggplot(aes(x=reorder(lakeName, perc_missing_days), y=perc_missing_days))+
+  geom_bar(stat="identity",  color="black", fill="blue")+
+    theme(legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=6))+
+  geom_hline(yintercept=50)+
+  ylab("Percentage of missing days during 'summer' period")
+
+bella_metab_extendSummer_summary %>%
+  # filter(dataset=="summer+") %>%
+  mutate(perc_missing_days=(n_NAs/153)*100)%>%
+  ggplot(aes(x=reorder(lakeName, perc_missing_days), y=perc_missing_days))+
+  geom_bar(stat="identity",  color="black", fill="green")+
+    theme(legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=6))+
+  geom_hline(yintercept=50)+
+  ylab("Percentage of missing days during 'summer+' period")
+```
+
+Whether we consider just "summer" (June1-Sept1) or "summer+" (May1-Oct1), we end up with the same few lakes as problematic in terms of number of days missing. If we use 50% as a cut-off, these lakes are Balaton (borderline), Barco, PrairieLake, Prairie Pothole, and Rotoiti
+
+# Cut-offs for lakes with lots of data
+```{r, out.width = '100%',fig.height=15}
+
+bella_metab_withMetaData %>%
+  filter(lakeName %in% c("Simoncouche",
+                         "Bay",
+                         "Jordan",
+                          "Castle",
+                         "Mendota",
+                         "P1",
+                         "P8",
+                         "Ovre",
+                         "SkyPond",
+                         "Vortsjarv",
+                         "Sunapee",
+                         "Crampton"))%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    facet_wrap(.~lakeName, scales="free", ncol=3)
+
+
+bella_metab_withMetaData %>%
+  filter(lakeName %in% c("Taupo"))%>%
+  ggplot(aes(x=solarDay,y=GPP_mgm2, fill=season))+
+  geom_point(size=3, shape=21)+
+  scale_fill_manual(values=c("lightgreen","white","forestgreen"))+
+    ylab(expression(paste('GPP (mg O2 m'^-2,' day'^-1,')')))+
+  theme_bw()+
+    facet_wrap(.~lakeName, scales="free", ncol=3)
+
+```
+
+
