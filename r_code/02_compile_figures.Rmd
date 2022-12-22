@@ -20,7 +20,7 @@ knitr::opts_knit$set(root.dir='..')
 knitr::opts_chunk$set(out.width = '50%',fig.height=10) 
 # renv::snapshot()
 
-source(here("r_code/librariesAndFunctions.R"))
+source(here("r_code/scripts/librariesAndFunctions.R"))
 
 #Read in metadata google sheet
 metadata<-read_sheet("https://docs..google.com/spreadsheets/d/1is87WT3n_TU76pTyiis3Os08JJiSmWc2G6K4bthJhU8/edit#gid=952562522") 
@@ -32,7 +32,7 @@ metadata<-read_sheet("https://docs..google.com/spreadsheets/d/1is87WT3n_TU76pTyi
 ##### Metabolism
 ```{r load raw metab & metadata, include=FALSE}
 ####PULL IN METABOLISM DATA######
-source(here("r_code/dataPullMetab.R")) 
+source(here("r_code/scripts/dataPullMetab.R")) 
 
 rm(cur)
 rm(dontuse)
@@ -126,7 +126,7 @@ length(unique(bella_metab_extendedSummer$lakeName))
 ```{r pull in load estimates, include=FALSE}
 #######PULL IN LOAD DATA########
 
-source(here("r_code/dataPullLoads.R")) #Added on 2021-04-26; Erken added 2021-12-08
+source(here("r_code/scripts/dataPullLoads.R")) #Added on 2021-04-26; Erken added 2021-12-08
 
 # source(knitr::purl(here("r_code/003_LoadEstimates.Rmd"), quiet=TRUE))
 
@@ -237,7 +237,7 @@ master_df<-left_join(bella_metab_summary %>%
 ```{r lake nutrient data, include=FALSE}
 
 
-source(here("r_code/dataPullNutrients.R"))
+source(here("r_code/scripts/dataPullNutrients.R"))
 rm(list = ls()[grep("nuts", ls())])
 rm(list = ls()[grep("UNDERC", ls())])
 rm(WATER_CHEM, solomonLakeData, solomonLakeData_trim, dataA, dataB, catchment_newtz)
