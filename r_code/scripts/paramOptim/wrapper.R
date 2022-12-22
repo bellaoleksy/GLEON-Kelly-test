@@ -2,6 +2,7 @@
 
 #Load libraries ----
 library(deSolve)
+library(tidyverse)
 
 #Load functions ----
 # source('kellyLoss.r')
@@ -14,8 +15,9 @@ source('r_code/scripts/paramOptim/lightAtten.r')
 source('r_code/scripts/paramOptim/kellyPredix.r')
 
 #Load data ----
-# d <- read.csv('gridSearchInput.csv')
+d <- data.frame(sims2)
 d <- read.csv('data/gridSearchInput.csv')
+
 
 #Add a column to d for incident light - this is just a constant made up number right now
 d$I0 <- 1000
@@ -36,8 +38,6 @@ upper <- log(c(kDOC=0.8,kA=0.005,lA=0.3,pA=2,hA=100,mA=10,decay=0.01,cA=0.025,v=
 # upper <- log(c(kDOC=0.504,kA=0.000264,lA=0.12,pA=1.44,hA=66,mA=2.4,decay=0.0012,cA=0.018,v=0.12,rec=0.995,scaleGPP=100,scaleP=100,scaleDOC=100, scalezMix=100))
 # 
 
-
-
 #Find ML estimates of parameters ----
 #(by minimizing the NLL of residuals between observations and predictions)
 
@@ -46,18 +46,206 @@ upper <- log(c(kDOC=0.8,kA=0.005,lA=0.3,pA=2,hA=100,mA=10,decay=0.01,cA=0.025,v=
 
 #Find ML estimates
 start_time <- Sys.time()
-optimOut <- optim(par=parGuess,fn=kellyLoss,lower=lower,upper=upper,d=d)
+optimOut <- optim(par=parGuess,fn=kellyLoss,lower=lower,upper=upper,d=d, hessian = T)
 end_time <- Sys.time()
 end_time - start_time
 optimOut
 # Time difference of 48 minutes IAO 2021-11-02
+# Time difference of 1.38602 hours IAO 2021-12-01 possibly longer with the hessian matrix?
 
-exp(optimOut$par)
+
+# "Free Range" ------------------------------------------------------------
+optimOut_freeRange<-optimOut
+
+
+# Getting SE and CI on the parameters
+# https://rstudio-pubs-static.s3.amazonaws.com/107801_2785d7d7a49744539ef21eaaebe4fe5a.html
+
+hessian <- optimOut_freeRange$hessian
+hessian.inv <- solve(hessian)
+parameter.se <- sqrt(diag(exp(hessian.inv)))
+parameter.se
+ML<-exp(optimOut_freeRange$par)
+
+CI.matrix.freeRange <- as.data.frame(matrix(NA, nrow = 5, ncol = 14))
+
+CI.matrix.freeRange[1,] <- ML
+CI.matrix.freeRange[2,] <- ML - 1.96 * parameter.se
+CI.matrix.freeRange[3,] <- ML + 1.96 * parameter.se
+CI.matrix.freeRange[4,] <- c(kDOC=0.05,kA=0.00005,lA=0.01,pA=0.1,hA=20,mA=0.1,decay=0.0001,cA=0.005,v=0.01,rec=0.2,scaleGPP=0,scaleP=0,scaleDOC=0, scalezMix=0)
+CI.matrix.freeRange[5,] <- c(kDOC=0.8,kA=0.005,lA=0.3,pA=2,hA=100,mA=10,decay=0.01,cA=0.025,v=0.5,rec=0.995,scaleGPP=100,scaleP=100,scaleDOC=100, scalezMix=100)
+
+names(CI.matrix.freeRange) <- c("kDOC","kA","lA","pA","hA","mA","decay","cA","v","rec","scaleGPP","scaleP","scaleDOC", "scalezMix")
+rownames(CI.matrix.freeRange) <- c("ML", "95% Lower bound", "95% Upper bound","lowerStart","upperStart")
+# rownames(CI.matrix.freeRange) <- c("ML", "95% Lower bound", "95% Upper bound")
+
+CI.matrix.freeRange[,1:10]
+
+
+lowerBound<-c(kDOC=0.05,kA=0.00005,lA=0.01,pA=0.1,hA=20,mA=0.1,decay=0.0001,cA=0.005,v=0.01,rec=0.2,scaleGPP=0,scaleP=0,scaleDOC=0, scalezMix=0)
+upperBound<- c(kDOC=0.8,kA=0.005,lA=0.3,pA=2,hA=100,mA=10,decay=0.01,cA=0.025,v=0.5,rec=0.995,scaleGPP=100,scaleP=100,scaleDOC=100, scalezMix=100)
+bounds<-data.frame(lowerBound, upperBound) %>%
+  rownames_to_column() %>% rename(name=rowname)
+
+CI.df.freeRange<-data.frame(CI.matrix.freeRange) %>%
+  rownames_to_column() %>%
+  pivot_longer(-1) %>%
+  mutate(rowname=factor(rowname,
+                        levels=c("ML", "95% Lower bound", "95% Upper bound","lowerStart","upperStart"))) %>%
+  left_join(.,bounds, by="name")
+                        # levels=c("ML", "95% Lower bound", "95% Upper bound")))
+
+
+
+CI.df.freeRange %>%
+  filter(!name %in% c("scaleDOC","scaleGPP","scaleP","scalezMix"))%>%
+  # filter(!rowname %in% c("lowerStart","upperStart")) %>%
+  ggplot(aes(x=value, y=name, fill=rowname, group=NA))+
+  geom_segment(aes(x = lowerBound,
+                   y = name,
+                   xend = upperBound,
+                   yend = name),
+               size = 0.5) +
+  geom_point(shape=21,size=2.5, alpha=0.5)+
+  facet_wrap(~name, scales="free",
+             nrow=10)+
+  scale_fill_manual(values=c("purple","purple","purple","black","black"),
+                    name="Legend:")+
+  ggpubr::theme_pubr()+
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_blank(),
+    legend.position = "bottom"
+  )+
+  labs(y="Parameter name",
+       x="Parameter value",
+       title="Free range")
+
+
+
+# "Constrained" +/- 20% ------------------------------------------------------------
+optimOut_constrained<-optimOut
+
+# Getting SE and CI on the parameters
+# https://rstudio-pubs-static.s3.amazonaws.com/107801_2785d7d7a49744539ef21eaaebe4fe5a.html
+hessian <- optimOut_constrained$hessian
+hessian.inv <- solve(hessian)
+parameter.se <- sqrt(diag(exp(hessian.inv)))
+parameter.se
+ML<-exp(optimOut_constrained$par)
+
+CI.matrix.constrained <- as.data.frame(matrix(NA, nrow = 5, ncol = 14))
+
+CI.matrix.constrained[1,] <- ML
+CI.matrix.constrained[2,] <- ML - 1.96 * parameter.se
+CI.matrix.constrained[3,] <- ML + 1.96 * parameter.se
+CI.matrix.constrained[4,] <- c(kDOC=0.336,kA=0.000176,lA=0.08,pA=0.96,hA=44,mA=1.6,decay=8e-04,cA=0.012,v=0.08,rec=0.76,scaleGPP=0,scaleP=0,scaleDOC=0, scalezMix=0)
+CI.matrix.constrained[5,] <- c(kDOC=0.504,kA=0.000264,lA=0.12,pA=1.44,hA=66,mA=2.4,decay=0.0012,cA=0.018,v=0.12,rec=0.995,scaleGPP=100,scaleP=100,scaleDOC=100, scalezMix=100)
+
+names(CI.matrix.constrained) <- c("kDOC","kA","lA","pA","hA","mA","decay","cA","v","rec","scaleGPP","scaleP","scaleDOC", "scalezMix")
+rownames(CI.matrix.constrained) <- c("ML", "95% Lower bound", "95% Upper bound","lowerStart","upperStart")
+
+CI.matrix.constrained[,1:10]
+
+
+lowerBound<-c(kDOC=0.336,kA=0.000176,lA=0.08,pA=0.96,hA=44,mA=1.6,decay=8e-04,cA=0.012,v=0.08,rec=0.76,scaleGPP=0,scaleP=0,scaleDOC=0, scalezMix=0)
+upperBound<- c(kDOC=0.504,kA=0.000264,lA=0.12,pA=1.44,hA=66,mA=2.4,decay=0.0012,cA=0.018,v=0.12,rec=0.995,scaleGPP=100,scaleP=100,scaleDOC=100, scalezMix=100)
+bounds<-data.frame(lowerBound, upperBound) %>%
+  rownames_to_column() %>% rename(name=rowname)
+
+CI.df.constrained<-data.frame(CI.matrix.constrained) %>%
+  rownames_to_column() %>%
+  pivot_longer(-1) %>%
+  mutate(rowname=factor(rowname,
+                        levels=c("ML", "95% Lower bound", "95% Upper bound","lowerStart","upperStart"))) %>%
+  left_join(.,bounds, by="name")
+# levels=c("ML", "95% Lower bound", "95% Upper bound")))
+
+
+
+CI.df.constrained %>%
+  filter(!name %in% c("scaleDOC","scaleGPP","scaleP","scalezMix"))%>%
+  # filter(!rowname %in% c("lowerStart","upperStart")) %>%
+  ggplot(aes(x=value, y=name, fill=rowname, group=NA))+
+  geom_segment(aes(x = lowerBound,
+                   y = name,
+                   xend = upperBound,
+                   yend = name),
+               size = 0.5) +
+  geom_point(shape=21,size=2.5, alpha=0.5)+
+  facet_wrap(~name, scales="free",
+             nrow=10)+
+  scale_fill_manual(values=c("purple","purple","purple","black","black"),
+                    name="Legend:")+
+  ggpubr::theme_pubr()+
+  theme(
+    strip.background = element_blank(),
+    strip.text.x = element_blank(),
+    legend.position = "bottom"
+  )+
+  labs(y="Parameter name",
+       x="Parameter value",
+       title="Constrained")
+
+
+
+# Plot together
+CI.df.constrained$set<-"constrained"
+CI.df.freeRange$set<-"freeRange"
+
+# For geom_segment
+CI.df.constrained.wide<-CI.df.constrained %>%
+  filter(rowname %in% c("95% Lower bound","95% Upper bound")) %>%
+  pivot_wider(names_from="rowname",values_from="value") %>%
+  rename(LB=`95% Lower bound`,
+         UB=`95% Upper bound`)
+
+
+bind_rows(CI.df.constrained,
+          CI.df.freeRange) %>%
+  filter(!name %in% c("scaleDOC","scaleGPP","scaleP","scalezMix"))%>%
+  # filter(set=="constrained") %>%
+  ggplot(aes(x=value, y=set, fill=rowname, shape=set))+
+  geom_point(size=2.5)+
+  facet_wrap(~name, scales="free",
+             nrow=10,
+             strip.position="left")+
+  # geom_segment(data=CI.df.constrained.wide,aes(x=LB,xend=UB,y=name,yend=name),col="grey")
+
+  scale_fill_manual(values=c("white","black","black","grey50","grey50"),
+                    name="Legend:")+
+  scale_shape_manual(values=c(21,22),
+                     name="Legend:")+
+  ggpubr::theme_pubr()+
+  theme(strip.placement = "outside",
+        legend.position = "bottom")+
+  labs(y="Parameter name",
+       x="Parameter value",
+       title="Constrained")
+
+
 
 #Plot fits vs observations ----
 
+params <- read_csv("data/params_20220131.csv") %>%
+  drop_na()
+params1<-as.numeric(as.character(params))
+paramNames<-c("kDOC",
+              "kA",
+              "lA",
+              "pA",
+              "hA",
+              "mA",
+              "decay",
+              "cA",
+              "v",
+              "rec")
+names(params1)<-paramNames
+
+
 #Calculate the fits
 fits <- kellyPredix(optimOut$par,d)
+fits <- kellyPredix(params,d)
 
 #Plot fits vs observations - three panels
 par(mfrow=c(2,2),mar=c(4.1,4.1,1.1,1.1))
@@ -134,15 +322,15 @@ compare_params<-data.frame(params) %>%
 
 compare_params
 # write_csv(compare_params, "data/export/compareParams_20211102_correctedGPP.csv")
-# write_csv(compare_params, "data/export/compareParams_20211104_correctedGPP_freeRange.csv")
-write_csv(compare_params, "data/export/compareParams_20211104_correctedGPP_constrainedLimits20perc.csv")
+write_csv(compare_params, "data/export/compareParams_2021208_correctedGPP_freeRange.csv")
+# write_csv(compare_params, "data/export/compareParams_20211104_correctedGPP_constrainedLimits20perc.csv")
 
 
 
 # How do the fits compare with the default params? ------------------------
 
 #Pull in parameter estimates from 11/04/2021 - free range
-params1<-read_csv("data/export/compareParams_20211104_correctedGPP_freeRange.csv") %>%
+params1<-read_csv("data/export/compareParams_2021208_correctedGPP_freeRange.csv") %>%
   dplyr::select(-`Kelly set`) %>%
   pivot_wider(names_from=`max. likelihood set`, values_from="rowname") %>%
   names()
@@ -196,8 +384,8 @@ fits_constrained<-data.frame(fits_constrained) %>%
 
 #Create master dataframe
 fits_master<-bind_rows(fits_default,
-                       fits_freeRange,
-                       fits_constrained)
+                       fits_freeRange)
+                       # fits_constrained)
 
 #Create table with all the parameter sets too
 kelly_set<-data.frame(c(kDOC=0.42,kA=0.00022,lA=0.1,pA=1.2,hA=55,mA=2,decay=0.001,cA=0.015,v=0.1,rec=0.95))
@@ -449,24 +637,25 @@ rmse_freeRange <- error_freeRange[1,13:17]
 ##MEAN GPP
 meanGPP_bar<-error_freeRange %>%
   ggplot(aes(x=reorder(lakeName, (meanGPP-GPPHat)), y=(meanGPP-GPPHat)))+
-  geom_bar(stat="identity",  color="black", fill="white")+
+  geom_bar(aes(fill=lakeName),stat="identity",  color="black")+
   theme_pubr()+
   theme(
     axis.title.x=element_blank(),
     axis.text.x=element_text(angle = 45, hjust = 1, size=6))+
   ylab("Obs mean GPP - GPP Hat")+
-  xlab("Lake")+
-  scale_fill_continuous_sequential(palette = "Terrain", rev=TRUE)
+  xlab("Lake")
 # ggtitle("How far off are GPP observations for each lake?")+
 
 meanGPP_1to1<-error_freeRange %>%
   ggplot(aes(x=meanGPP, y=GPPHat))+
-  geom_point(shape=21, size=2.5, fill="white")+
+  geom_point(aes(fill=lakeName),shape=21, size=2.5)+
   geom_abline(slope=1, intercept=0)+
+  geom_text_repel(aes(label = lakeName), size = 3, box.padding = 0.5)+
   geom_text(data=rmse_freeRange,
             aes(label= paste0("RMSE=", rmse_GPPmean)),
-            x=1500,
-            y=5000)+
+            x=-Inf,
+            y=Inf,
+            hjust = -0.2, vjust= 1)+
   ylab("GPP hat")+
   xlab("Mean obs GPP")+
   theme_pubr()
@@ -476,7 +665,7 @@ meanGPP_1to1<-error_freeRange %>%
 ##MEDIAN GPP
 medianGPP_bar<-error_freeRange %>%
   ggplot(aes(x=reorder(lakeName, (medianGPP-GPPHat)), y=(medianGPP-GPPHat)))+
-  geom_bar(stat="identity",  color="black", fill="white")+
+  geom_bar(aes(fill=lakeName),stat="identity",  color="black")+
   theme_pubr()+
   theme(
     axis.title.x=element_blank(),
@@ -487,12 +676,14 @@ medianGPP_bar<-error_freeRange %>%
 
 medianGPP_1to1<-error_freeRange %>%
   ggplot(aes(x=medianGPP, y=GPPHat))+
-  geom_point(shape=21, size=2.5, fill="white")+
+  geom_point(aes(fill=lakeName),shape=21, size=2.5)+
   geom_abline(slope=1, intercept=0)+
+  geom_text_repel(aes(label = lakeName), size = 3, box.padding = 0.5)+
   geom_text(data=rmse_freeRange,
             aes(label= paste0("RMSE=", rmse_GPPmedian)),
-            x=750,
-            y=5000)+
+            x=-Inf,
+            y=Inf,
+            hjust = -0.2, vjust= 1)+
   ylab("GPP hat")+
   xlab("Median obs GPP")+
   theme_pubr()
@@ -500,9 +691,8 @@ medianGPP_1to1<-error_freeRange %>%
 #Plot the GPP parameters together
 (meanGPP_bar+meanGPP_1to1)/
   (medianGPP_bar+medianGPP_1to1)+
-  plot_annotation(title = 'Optimized Kelly model parameters - "free range"')
-
-
+  plot_annotation(title = 'Optimized Kelly model parameters - "free range"') +
+  plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 ##DOC
 DOC_bar<-error_freeRange %>%
@@ -518,12 +708,13 @@ DOC_bar<-error_freeRange %>%
 
 DOC_1to1<-  error_freeRange %>%
   ggplot(aes(x=DOC, y=CHat))+
-  geom_point(shape=21, size=2.5, fill="white")+
+  geom_point(aes(fill=lakeName),shape=21, size=2.5)+
   geom_abline(slope=1, intercept=0)+
   geom_text(data=rmse_freeRange,
             aes(label= paste0("RMSE=", rmse_DOC)),
-            x=5,
-            y=30)+
+            x=-Inf,
+            y=Inf,
+            hjust = -0.2, vjust= 1)+
   ylab("DOC hat")+
   xlab("Mean obs DOC")+
   theme_pubr()
@@ -543,12 +734,13 @@ TP_bar<-error_freeRange %>%
 
 TP_1to1<-  error_freeRange %>%
   ggplot(aes(x=TP, y=PHat))+
-  geom_point(shape=21, size=2.5, fill="white")+
+  geom_point(aes(fill=lakeName),shape=21, size=2.5)+
   geom_abline(slope=1, intercept=0)+
   geom_text(data=rmse_freeRange,
             aes(label= paste0("RMSE=", rmse_TP)),
-            x=25,
-            y=120)+
+            x=-Inf,
+            y=Inf,
+            hjust = -0.2, vjust= 1)+
   ylab("TP hat")+
   xlab("Mean obs TP")+
   theme_pubr()
@@ -569,12 +761,13 @@ zMix_bar<-error_freeRange %>%
 
 zMix_1to1<-  error_freeRange %>%
   ggplot(aes(x=meanzMix, y=zMixHat))+
-  geom_point(shape=21, size=2.5, fill="white")+
+  geom_point(aes(fill=lakeName),shape=21, size=2.5)+
   geom_abline(slope=1, intercept=0)+
   geom_text(data=rmse_freeRange,
             aes(label= paste0("RMSE=", rmse_zMix)),
-            x=5,
-            y=15)+
+            x=-Inf,
+            y=Inf,
+            hjust = -0.2, vjust= 1)+
   ylab("zMix hat")+
   xlab("Mean obs zMix")+
   theme_pubr()

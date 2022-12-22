@@ -5918,20 +5918,20 @@ write.table(SimoncouchezMix, "results/model_output_raw/Simoncouche/SimoncouchezM
 
 # > Lake Erken -------------------------------------------------------------
 
-ErkenDOobs <- read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_ODO mg l_2018.txt", stringsAsFactors = FALSE) %>%
+ErkenDOobs <- read.delim("~/Dropbox/dropbox Research/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_ODO mg l_2018.txt", stringsAsFactors = FALSE) %>%
   rename(dateTime=Date.Time,
          localTZ=TimeZone) %>%
   select(-DayLightSavings)
-Erkenwnd <- read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_Wind_2018.txt", stringsAsFactors = FALSE, skip=3) %>%
+Erkenwnd <- read.delim("~/Dropbox/dropbox Research/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_Wind_2018.txt", stringsAsFactors = FALSE, skip=3) %>%
   rename(dateTime=TMSTAMP,
          localTZ=Time.Zone,
          windSpeed=X.m.s.) %>%
   select(-Daylight.savings)
-Erkentemp <- read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_2018_WTemp_60min.txt", stringsAsFactors = FALSE) %>%
+Erkentemp <- read.delim("~/Dropbox/dropbox Research/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_2018_WTemp_60min.txt", stringsAsFactors = FALSE) %>%
   rename(dateTime=TMSTAMP,
          localTZ=Time.Zone) %>%
   select(-Daylight.Savings)
-ErkenPAR <- read.delim("~/Google Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_Rad_2018.txt", stringsAsFactors = FALSE)%>%
+ErkenPAR <- read.delim("~/Dropbox/dropbox Research/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_Rad_2018.txt", stringsAsFactors = FALSE)%>%
   rename(dateTime=TMSTAMP,
          localTZ=TimeZone) %>%
   select(-Daylight.Savings)
@@ -6076,7 +6076,9 @@ Erken_full %>%
 
 library(LakeMetabolizer)
 Erken.wtr<- Erken_full %>%
-  select(dateTime, wtr_1:wtr_15.5)
+  select(dateTime, wtr_1:wtr_15.5) 
+
+
 wtr.heat.map(Erken.wtr, plot.title="Erken Water Temp (C)")
 
 #calculate and plot the metalimnion depths

@@ -16,13 +16,16 @@ sims2<-   left_join(inflow_conc_summary,metadata %>%
          V_m3=`Volume (m3)`, #volume, m3
          DOC=DOC_mgL, #mg/L=g/m3, in-lake DOC concentrations
          TP=TP_ugL, #ug/L=mg/m3, in-lake TP concentrations
-         DOCin=DOC_gm3) %>% #mg/L=g/m3, estimated DOC concentration of inflow
+         # DOCin=DOC_gm3) %>% #mg/L=g/m3, estimated DOC concentration of inflow
+         DOCin=DOC_volWeighted_gm3, #mg/L=g/m3 estimated DOC concentration of inflow
+         TPin=TP_volWeighted_mgm3,
+         Qin=Qin_mean) %>%
   mutate(SA=SA_ha/100, #surface area in km2
-         Pin=TP_mgm3,#ug/L=mg/m3, estimated TP concentration of inflow
-         Qin=Qin*86400, #m3/day
+         # Pin=TP_mgm3,#ug/L=mg/m3, estimated TP concentration of inflow
+         # Qin=Qin*86400, #m3/day
          HRT_days=HRT_days*365) %>%#HRT (days)
-  mutate(DOCin = replace(DOCin, lakeName=="EastLong", 13.60287933), #replace with modeled estimates for DOCin
-         Pin = replace(Pin, lakeName=="EastLong", 18.074)) %>% #replace with modeled estimates for TPin
+  # mutate(DOCin = replace(DOCin, lakeName=="EastLong", 13.60287933), #replace with modeled estimates for DOCin
+  #        Pin = replace(Pin, lakeName=="EastLong", 18.074)) %>% #replace with modeled estimates for TPin
   drop_na() 
 # mutate(DOCin = replace(DOCin, lakeName=="Acton", 6.5907),
 #        Pin = replace(Pin, lakeName=="Acton", 97.5))
@@ -33,7 +36,7 @@ n_distinct(sims2$lakeName)
 export<-left_join(sims2, master_df %>%
             select(lakeName, medianGPP, meanGPP, meanzMix),
           by="lakeName") %>%
-  select(-DOC_load,-TP_load,-SA_ha, -TP_mgm3)
+  select(-Qin_total,-SA_ha)
 write.csv(export, file = "data/gridSearchInput.csv", row.names = FALSE)
 
 # sims<-left_join(master_df,load_estimates_huisman, by="lakeName")  %>% 

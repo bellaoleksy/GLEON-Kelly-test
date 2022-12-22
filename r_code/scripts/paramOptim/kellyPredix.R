@@ -49,7 +49,7 @@ kellyPredix <- function(p,d) {
     #Algal productivity d-1
     prod <- (p["pA"]/(kD*zMix))*log((p["hA"]+d$I0[i])/(p["hA"]+IZMix))*(Pstar/(Pstar+p["mA"]))	# d-1
     #Converted to areal GPP
-    GPPHat[i] <- prod*Astar*zMix
+    GPPHat[i] <- prod*Astar*zMix*1.25
     
     #TP at equilibrium
     PHat[i] <- Astar*p["cA"]+Pstar # predicted lake TP; algal biomass * Phosphorus to carbon quota of phytoplankton + dissolvedP

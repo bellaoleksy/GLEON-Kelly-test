@@ -21,7 +21,7 @@ for(i in 1:length(folders)){ # loops over all folders in metab directory
 
 
 #Remove Meuggelsee?
-folders<-folders[folders != "Mueggelsee"]; # without elements that are "b"
+folders<-folders[folders != "Mueggelsee"]; 
 
 
 bella_zMix<-data.frame() # data frame to store all metab data

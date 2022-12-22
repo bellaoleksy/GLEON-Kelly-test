@@ -4,14 +4,14 @@
 
 #Run for UNDERC sites
 #Source database script
-dbdir=file.path("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/MFE")
+dbdir=file.path("~/Google Drive/My Drive/Research (common)/Research/Data/R/MFE")
 # db="MFEdb_20200218.db"
 db="MFEdb_20210112.db"
 # db="/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/MFE/MFEdb_20210112.db"
 #Updating script with 2020 data
 sensordb="MFEsensordb.db" 
-source("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/MFE/000_dbUtil.R")
-source("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/MFE/000_sensordbTable.R")
+source("~/Google Drive/My Drive/Research (common)/Research/Data/R/MFE/000_dbUtil.R")
+source("~/Google Drive/My Drive/Research (common)/Research/Data/R/MFE/000_sensordbTable.R")
 
 # dbTableList()
 
@@ -83,9 +83,9 @@ UNDERCcolor_2017 <- dbTable("COLOR") %>%
            ifelse(month %in% c(10), "shoulder", 
                   ifelse(month %in% c(5, 6, 7, 8, 9), "summer", "error"))) %>%
   filter(year=="2017" & season =="summer") %>%
-  select(-g440, -year, -month, -season, -siteName) %>%
+  select(-abs440, -year, -month, -season, -siteName) %>%
   group_by(lakeID)%>%
-  summarize(abs440=mean(abs440, na.rm=TRUE)) %>%
+  summarize(abs440=mean(g440, na.rm=TRUE)) %>% #Modified 2022-11-08 because I realized we were pulled the raw absorbance values instead of color
   mutate(lakeName=NA)%>%
   mutate(
     lakeName = replace(lakeName, lakeID=="BO", 'Bolger'),
@@ -147,9 +147,9 @@ UNDERCcolor_2016 <- dbTable("COLOR") %>%
            ifelse(month %in% c(10), "shoulder", 
                   ifelse(month %in% c(5, 6, 7, 8, 9), "summer", "error"))) %>%
   filter(year=="2016" & season =="summer") %>%
-  select(-g440, -year, -month, -season, -siteName) %>%
+  select(-abs440, -year, -month, -season, -siteName) %>%
   group_by(lakeID)%>%
-  summarize(abs440=mean(abs440, na.rm=TRUE)) %>%
+  summarize(abs440=mean(g440, na.rm=TRUE)) %>% #Modified 2022-11-08 because I realized we were pulled the raw absorbance values instead of color
   mutate(lakeName=NA)%>%
   mutate(lakeName = replace(lakeName, lakeID=="BA", 'Bay'),
          lakeName = replace(lakeName, lakeID=="WA", 'Ward')) 
@@ -167,7 +167,7 @@ UNDERCnewts<-bind_rows(UNDERCnewts_2016, UNDERCnewts_2017)
 ###############~
 
 
-catchment_newtz<- read.delim('/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/catchment_metab_wg/data/in_lake_nutrients/GLEON_nutrient_inlake.txt') %>%
+catchment_newtz<- read.delim('~/Google Drive/My Drive/Research (common)/Research/Data/R/catchment_metab_wg/data/in_lake_nutrients/GLEON_nutrient_inlake.txt') %>%
   select(-comment)%>%
   separate(dateTime, c("date", "time"), "//") %>%
   mutate(date=date(date),
@@ -211,7 +211,8 @@ glimpse(catchment_newtz)
 # ~Jordan nuts -------------------------------------------------
 
 ##############Jordan
-jordannuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Jordan/JordanPond_nutrient.txt") %>%
+
+jordannuts <- read.delim(here("data/metab_data_raw/Jordan/JordanPond_nutrient.txt")) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -227,7 +228,7 @@ str(jordannuts)
 # ~Barco nuts -------------------------------------------------
 
 ##############Barco
-Barcnuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/NEON sites/BARC/BARC_surfChem_2018-2019.csv")%>% select(-X) %>%
+Barcnuts <- read.csv(here("data/metab_data_raw/NEON sites/BARC/BARC_surfChem_2018-2019.csv")) %>% select(-X) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -249,7 +250,7 @@ str(Barcnuts)
 # ~Little Rock nuts -------------------------------------------------
 
 ##############Little Rock Lake
-Lironuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/NEON sites/LIRO/LIRO_surfChem_2018-2019.csv")%>% select(-X) %>%
+Lironuts <- read.csv(here("data/metab_data_raw/NEON sites/LIRO/LIRO_surfChem_2018-2019.csv")) %>% select(-X) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -271,7 +272,7 @@ str(Lironuts)
 # ~Prairie lake nuts -------------------------------------------------
 
 ##############Prairie Lake
-Prlanuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/NEON sites/PRLA/PRLA_surfChem_2018-2019.csv")%>% select(-X) %>%
+Prlanuts <- read.csv(here("data/metab_data_raw/NEON sites/PRLA/PRLA_surfChem_2018-2019.csv")) %>% select(-X) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -293,7 +294,7 @@ str(Prlanuts)
 # ~Prairie pothole nuts -------------------------------------------------
 
 ##############Prairie Pothole
-Prlonuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/NEON sites/PRPO/PRPO_surfChem_2018-2019.csv")%>% select(-X) %>%
+Prlonuts <- read.csv(here("data/metab_data_raw/NEON sites/PRPO/PRPO_surfChem_2018-2019.csv")) %>% select(-X) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -315,7 +316,7 @@ str(Prlonuts)
 # ~Sugg nuts -------------------------------------------------
 
 ##############Sugg
-SUGGnuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/NEON sites/SUGG/SUGG_surfChem_2018-2019.csv")%>% select(-X)%>%
+SUGGnuts <- read.csv(here("data/metab_data_raw/NEON sites/SUGG/SUGG_surfChem_2018-2019.csv")) %>% select(-X)%>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -338,7 +339,7 @@ SUGGnuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/D
 # ~Erken nuts -------------------------------------------------
 
 ##############Erken
-erkennuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Erken/Erken_LakeChem2018.txt") %>%
+erkennuts <- read.delim(here("data/metab_data_raw/Erken/Erken_LakeChem2018.txt")) %>%
   separate(Date.Time, c("date", "time"), " ") %>%
   mutate(date=mdy(date),
          DOY=yday(date)) %>%
@@ -356,7 +357,7 @@ str(erkennuts)
 
 # ~Schulzensee nuts -------------------------------------------------
 
-schulzenseenuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Schulzensee/Schulzensee_nutrient.txt") %>%
+schulzenseenuts <- read.delim(here("data/metab_data_raw/Schulzensee/Schulzensee_nutrient.txt")) %>%
   # separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=mdy(date),
          DOY=yday(date)) %>%
@@ -369,7 +370,7 @@ str(schulzenseenuts)
 
 # ~Gollinsee nuts -------------------------------------------------
 
-Gollinseenuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Gollinsee/Gollinsee_nutrient.txt") %>%
+Gollinseenuts <- read.delim(here("data/metab_data_raw/Gollinsee/Gollinsee_nutrient.txt")) %>%
   # separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=mdy(date),
          DOY=yday(date)) %>%
@@ -383,7 +384,7 @@ str(Gollinseenuts)
 
 ##############Feeagh
 #Already included in Zwart dataset
-# feeaghnuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Feeagh/Feeagh_nutrient.txt") %>%
+# feeaghnuts <- read.delim(here("data/metab_data_raw/Feeagh/Feeagh_nutrient.txt")) %>%
 #   mutate(lakeID="FEE",
 #          lakeName="Feeagh") %>%
 #   rename(DOC_mgL=DOC,
@@ -403,7 +404,7 @@ str(Gollinseenuts)
 # ~Mueggelsee nuts -------------------------------------------------
 
 ##############Mueggelsee
-meugnuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Mueggelsee/Mueggelsee_nutrient.txt") %>%
+meugnuts <- read.delim(here("data/metab_data_raw/Mueggelsee/Mueggelsee_nutrient.txt")) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=mdy(date),
          DOY=yday(date)) %>%
@@ -427,7 +428,7 @@ str(meugnuts)
 # ~P1 nuts -------------------------------------------------
 
 ##############Prairie1
-p1nuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Prairie1/P1_nutrient.txt") %>%
+p1nuts <- read.delim(here("data/metab_data_raw/Prairie1/P1_nutrient.txt")) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -442,7 +443,7 @@ str(p1nuts)
 # ~P8 nuts -------------------------------------------------
 
 ##############Prairie8
-p8nuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Prairie8/P8_nutrient.txt") %>%
+p8nuts <- read.delim(here("data/metab_data_raw/Prairie8/P8_nutrient.txt")) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -458,7 +459,7 @@ str(p8nuts)
 # ~Simoncouche nuts -------------------------------------------------
 
 
-simoncouchenuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Simoncouche/Simoncouche_nutrient.csv") %>%
+simoncouchenuts <- read.csv(here("data/metab_data_raw/Simoncouche/Simoncouche_nutrient.csv")) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -479,7 +480,7 @@ str(simoncouchenuts)
 # ~Croche nuts -------------------------------------------------
 
 
-crochenuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Croche/Croche_nutrient.csv") %>%
+crochenuts <- read.csv(here("data/metab_data_raw/Croche/Croche_nutrient.csv")) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -500,7 +501,7 @@ str(crochenuts)
 # ~Taupo -------------------------------------------------
 
 
-tauponuts <- read.delim("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/data/metab_data_raw/Taupo/Taupo_nutrient.txt") %>%
+tauponuts <- read.delim(here("data/metab_data_raw/Taupo/Taupo_nutrient.txt")) %>%
   separate(dateTime, c("date", "time"), " ") %>%
   mutate(date=date(date),
          DOY=yday(date)) %>%
@@ -526,7 +527,7 @@ str(tauponuts)
 
 
 ##############Loch and Sky
-lochvalenuts <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/LVWS-long-term-data/data_clean/surface_chem/LVWS_surfacewaterchemistry_master_180211.csv", stringsAsFactors = F)
+lochvalenuts <- read.csv("~/Google Drive/My Drive/Research (common)/Research/Data/R/LVWS-long-term-data/data_clean/surface_chem/LVWS_surfacewaterchemistry_master_180211.csv", stringsAsFactors = F)
 
 lochvalenuts$NO3_NREL <- as.numeric(as.character(lochvalenuts$NO3_NREL))
 lochvalenuts$FLDCOND <- as.numeric(as.character(lochvalenuts$FLDCOND))
@@ -569,6 +570,7 @@ lochvalenuts <- lochvalenuts %>%
 
 
 # ~Castle nuts (NEED) --------------------------------------------------------------
+
 # ~Almberga nuts  --------------------------------------------------------------
 
 almberganuts <- read.delim(here("data/metab_data_raw/Almberga/Almberga_nutrient.txt")) %>%
@@ -644,7 +646,7 @@ glimpse(oneidanuts)
 
 #Join Solomon metadata
 # 
-solomonLakeData <- read.csv("/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/GLEON-Kelly-test/results/Solomon_output/Table - lake data.csv")
+solomonLakeData <- read.csv(here("results/Solomon_output/Table - lake data.csv"))
 str(solomonLakeData)
 # 
 #Trim out duplicates

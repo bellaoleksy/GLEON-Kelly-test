@@ -36,7 +36,7 @@ huisman<-function(t,y,params,SA,zMax,zMean,Qin,I0,Pin,DOCin){
     zMix=10^(-0.515*log10(DOC)+0.115*log10(2*sqrt(SA/pi))+0.991)
     if(zMix>zMax){zMix=zMax}
     
-    V=SA*1e6*zMean
+    # V=SA*1e6*zMean
     
     IZMix=lightAtten(z=zMix,I0=I0,kD=kD)
     

@@ -21,9 +21,15 @@ sims2<-   left_join(inflow_conc_summary,metadata %>%
          Pin=TP_mgm3,#ug/L=mg/m3, estimated TP concentration of inflow
          Qin=Qin*86400, #m3/day
          HRT_days=HRT_days*365) %>%#HRT (days)
-  mutate(DOCin = replace(DOCin, lakeName=="EastLong", 13.60287933), #replace with modeled estimates for DOCin
-         Pin = replace(Pin, lakeName=="EastLong", 18.074)) %>% #replace with modeled estimates for TPin
-  drop_na() 
+  mutate(
+         DOCin = replace(DOCin, lakeName=="EastLong", 13.60287933), #replace with modeled estimates for DOCin
+         Pin = replace(Pin, lakeName=="EastLong", 18.074),#replace with modeled estimates for TPin
+         DOC = replace(DOC, lakeName=="Lillinonah", 4.213750)) %>% 
+  drop_na() %>%
+  select(-DOC_load, -TP_load, -TP_mgm3, -SA_ha) %>%
+  distinct() %>%#remove duplicate rows
+  left_join(., bella_metab_summary %>%
+                    select(lakeName, meanGPP, medianGPP, meanzMix), by="lakeName")
 # mutate(DOCin = replace(DOCin, lakeName=="Acton", 6.5907),
 #        Pin = replace(Pin, lakeName=="Acton", 97.5))
 glimpse(sims2)
@@ -33,7 +39,7 @@ n_distinct(sims2$lakeName)
 # export<-left_join(sims2, master_df %>%
 #             select(lakeName, medianGPP, meanGPP),
 #           by="lakeName")
-# write.csv(export, file = "data/gridSearchInput.csv", row.names = FALSE)
+# write.csv(sims2, file = "data/gridSearchInput.csv", row.names = FALSE)
 
 # sims<-left_join(master_df,load_estimates_huisman, by="lakeName")  %>% 
 #   select(lakeName, DOC_load_kgday_mean,meanzMix, zMean,TP_load_kgday_mean,
@@ -192,8 +198,8 @@ for(j in 1:nrow(sims2)){
           hA=55,#Value used in Kelly paper
           mA=2, #Value used in Kelly paper
           decay=0.001, #Value used in Kelly paper
-          Pin=sims$Pin[j],
-          DOCin=sims$DOCin[j],
+          Pin=sims2$Pin[j],
+          DOCin=sims2$DOCin[j],
           cA=0.015, #Value used in Kelly paper
           v=0.1, #Value used in Kelly paper
           # rec=0.99, #Improves GPP and TP estimates a bit!

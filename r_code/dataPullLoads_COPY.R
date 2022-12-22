@@ -1460,55 +1460,74 @@ modelled_loads_kg<-left_join(load_estimates_huisman,metadata %>%
 zwart_sum<-zwart_load %>%
   rename(lakeName=lake)%>%
   filter(doy >= 121 & doy <= 274) %>%
+  # group_by(lakeName) %>%
+  # summarize(DOC_load=mean(DOC_load, na.rm=TRUE), #kg/day 
+  #           TP_load=mean(TP_load, na.rm=TRUE), #kg/day
+  #           Qin=mean(inflow, na.rm=TRUE)) %>% #m3/s
+  mutate(DOC_gm3=(DOC_load/inflow)*(1000/86400), #g/m3
+         TP_mgm3=(TP_load/inflow)*(1000/86400)*1000, #mg/m3
+         Q_m3day=inflow*86400, #m3 day-1
+         DOC_flux=DOC_gm3*Q_m3day, #g day-1
+         TP_flux=TP_mgm3*Q_m3day) %>%#mg day-1
   group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load, na.rm=TRUE), #kg/day
-            Qin=mean(inflow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  summarize(n=n(),
+            Qin_total=sum(Q_m3day, na.rm=TRUE),
+            Qin_mean=Qin_total/n, #m3/day
+            DOC_volWeighted_gm3=sum(DOC_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE),
+            TP_volWeighted_mgm3=sum(TP_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE))
 
-#Do we want to do it like this to truly calculate volume-weighted conc.?
-zwart_sum_ALT<-zwart_load %>%
-  rename(lakeName=lake)%>%
-  filter(doy >= 121 & doy <= 274) %>%
-  group_by(lakeName) %>%
-  summarize(DOC_load=sum(DOC_load, na.rm=TRUE), #kg/day 
-            TP_load=sum(TP_load, na.rm=TRUE), #kg/day
-            Qin=sum(inflow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin),
-         TP_mgm3=(TP_load/Qin)) 
-
-zwart_sum_ALT <- zwart_load %>%
-  rename(lakeName=lake)%>%
-  filter(doy >= 121 & doy <= 274) %>%
-  mutate(DOC_dailyFlux_g=)
-  group_by(lakeName) %>%
-  
 
 
 mueggelsee_sum<-mueggelsee_load_manual %>%
+  # group_by(lakeName) %>%
+  # summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
+  #           TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+  #           Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
+  # mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
+  #        TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  mutate(Q_m3day=flow*86400, #m3 day-1
+         DOC_flux=DOC_mgL*Q_m3day, #g day-1
+         TP_flux=TP_mgL*1000*Q_m3day) %>%#mg day-1
   group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  summarize(n=n(),
+            Qin_total=sum(Q_m3day, na.rm=TRUE),
+            Qin_mean=Qin_total/n, #m3/day
+            DOC_volWeighted_gm3=sum(DOC_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE),
+            TP_volWeighted_mgm3=sum(TP_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE))
 
 loch_sum <- loch_load_manual %>%
+  # group_by(lakeName) %>%
+  # summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
+  #           TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+  #           Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
+  # mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
+  #        TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  mutate(Q_m3day=flow*86400, #m3 day-1
+         DOC_flux=DOC_mgL*Q_m3day, #g day-1
+         TP_flux=TP_mgL*1000*Q_m3day) %>%#mg day-1
   group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  summarize(n=n(),
+            Qin_total=sum(Q_m3day, na.rm=TRUE),
+            Qin_mean=Qin_total/n, #m3/day
+            DOC_volWeighted_gm3=sum(DOC_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE),
+            TP_volWeighted_mgm3=sum(TP_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE))
 
 erken_sum <- erken_load_manual %>%
+  # group_by(lakeName) %>%
+  # summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
+  #           TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+  #           Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
+  # mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
+  #        TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  mutate(Q_m3day=flow*86400, #m3 day-1
+         DOC_flux=DOC_mgL*Q_m3day, #g day-1
+         TP_flux=TP_mgL*1000*Q_m3day) %>%#mg day-1
   group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  summarize(n=n(),
+            Qin_total=sum(Q_m3day, na.rm=TRUE),
+            Qin_mean=Qin_total/n, #m3/day
+            DOC_volWeighted_gm3=sum(DOC_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE),
+            TP_volWeighted_mgm3=sum(TP_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE))
 
 
 taupo_sum<-bind_rows(Taupo_Hinemaiaia_load_manual,
@@ -1522,25 +1541,37 @@ taupo_sum<-bind_rows(Taupo_Hinemaiaia_load_manual,
                      Taupo_Waihaha_load_manual,
                      Taupo_Whanganui_load_manual,
                      Taupo_Waitahanui_load_manual) %>%
+  mutate(lakeName="Taupo")%>%
   group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day #calculating mean daily loads for each tributary
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>%#m3/s
-  ungroup()%>%
-  summarize(DOC_load=sum(DOC_load, na.rm=TRUE), #kg/day #summing mean daily loads for each tributary
-            TP_load=sum(TP_load, na.rm=TRUE), #kg/day
-            # DOC_gm3=sum(DOC_gm3, na.rm=TRUE), #g/m3
-            # TP_gm3=sum(TP_gm3, na.rm=TRUE), #g/m3
-            Qin=sum(Qin, na.rm=TRUE))%>% #m3/s
-  mutate(lakeName="Taupo") %>%
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400), #calculate mean daily inflow concentration
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+  # summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day #calculating mean daily loads for each tributary
+  #           TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+  #           Qin=mean(flow, na.rm=TRUE)) %>%#m3/s
+  # ungroup()%>%
+  # summarize(DOC_load=sum(DOC_load, na.rm=TRUE), #kg/day #summing mean daily loads for each tributary
+  #           TP_load=sum(TP_load, na.rm=TRUE), #kg/day
+  #           # DOC_gm3=sum(DOC_gm3, na.rm=TRUE), #g/m3
+  #           # TP_gm3=sum(TP_gm3, na.rm=TRUE), #g/m3
+  #           Qin=sum(Qin, na.rm=TRUE))%>% #m3/s
+  # mutate(lakeName="Taupo") %>%
+  # mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400), #calculate mean daily inflow concentration
+  #        TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+mutate(Q_m3day=flow*86400, #m3 day-1
+       DOC_flux=DOC_mgL*Q_m3day, #g day-1
+       TP_flux=TP_mgL*1000*Q_m3day) %>%#mg day-1
+  group_by(lakeName) %>%
+  summarize(n=n(),
+            Qin_total=sum(Q_m3day, na.rm=TRUE),
+            Qin_mean=Qin_total/n, #m3/day
+            DOC_volWeighted_gm3=sum(DOC_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE),
+            TP_volWeighted_mgm3=sum(TP_flux, na.rm=TRUE)/sum(Q_m3day, na.rm=TRUE))
 
 
 
 #Long version of measured dataset
 inflow_conc_summary<-bind_rows(zwart_sum,mueggelsee_sum,loch_sum, taupo_sum, erken_sum) %>%
-  mutate(dataset="measured") 
+  mutate(dataset="measured") %>%
+  mutate(TP_load_kg=TP_volWeighted_mgm3*Qin_mean*(1/1000000), #daily kg load
+         DOC_load_kg=DOC_volWeighted_gm3*Qin_mean*(1/10000)) #daily kg load
 
 inflow_conc_summary_long<- inflow_conc_summary%>%
   pivot_longer(-c(lakeName, dataset))
@@ -1566,10 +1597,10 @@ modelled_loads_kg_long<- modelled_loads_kg %>%
 #Join together
 load_comparisons_long<-bind_rows(inflow_conc_summary_long,modelled_loads_kg_long)
 
-load_comparisons_wide<-bind_rows(inflow_conc_summary %>%
-                                   rename(DOC_load_kg=DOC_load,
-                                          TP_load_kg=TP_load,
-                                          Qin_m3s=Qin),
+load_comparisons_wide<-bind_rows(inflow_conc_summary%>%
+                                   rename(DOC_gm3=DOC_volWeighted_gm3,
+                                          TP_mgm3=TP_volWeighted_mgm3,
+                                          Qin=Qin_mean),
                                  modelled_loads_kg) %>%
   select(-4, -(8:10))
 
