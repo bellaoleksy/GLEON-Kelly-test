@@ -5,6 +5,8 @@
 ## Welcome! :wave: 
 This is a repo for a GLEON project in which we are synthesizing global lake metabolism data and using it to test a newly development lake ecosystem model that predicts pelagic gross primary production.
 
+The data folder is too large to host on Github. For now, if you need access to any of the raw data, you can access them on [Dropbox](https://www.dropbox.com/scl/fo/cziaf5wkwm4zaslxp2118/h?dl=0&rlkey=ydpa0j4oq7x3puk8km6q7hozh).
+
 ## Collaborators
 I am leading this project with input from many co-authors and data providers. A list of participants is [here](https://docs.google.com/spreadsheets/d/14FQnQPgZ-pgy7uB7kFIcMt7frfEgLC2RvRmYzuu9jlE/edit?usp=sharing).
 
