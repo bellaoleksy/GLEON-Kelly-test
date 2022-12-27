@@ -2140,7 +2140,10 @@ inflow_conc_comparison <- inflow_conc_summary %>%
 inflow_comparison <- left_join(inflow_conc_comparison,modelled_loads_kg_comparison, by=c("lakeName")) %>%
     mutate(
     DOCinflow_measured_gm3 = replace(DOCinflow_measured_gm3, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
-    TPinflow_measured_mgm3 = replace(TPinflow_measured_mgm3, lakeName=="EastLong", 48.9))
+    TPinflow_measured_mgm3 = replace(TPinflow_measured_mgm3, lakeName=="EastLong", 48.9)) %>%
+  #calculate the C:P
+  mutate(DOC_TP_measured=DOCinflow_measured_gm3/TPinflow_measured_mgm3,
+         DOC_TP_modeled=DOCinflow_modelled_gm3/TPinflow_modelled_mgm3)
 
 # A<-inflow_comparison %>%
 #   ggplot(aes(x=(DOC_load_kg_measured),y=(DOC_load_kg_modelled))) +
@@ -2178,10 +2181,11 @@ D<-inflow_comparison %>%
   labs(x=" measured inflow TP mg/m3",
        y=" modeled inflow TP mg/m3")
 
+
 gg_title = str_wrap("Modeled vs. measured TP and DOC inflow concentrations", width=100)
  
 # (A+B)/(C+D) + plot_annotation(title = gg_title)
-(B)/(D) 
+(B+D) 
 # + plot_annotation(title = gg_title)
   
 
@@ -2224,8 +2228,23 @@ D<-inflow_comparison %>%
 gg_title = str_wrap("Modeled vs. measured TP and DOC loads and inflow concentrations", width=100)
  
 # (A+B)/(C+D) + plot_annotation(title = gg_title)
-B/D
+B+D
 
 ggsave(here("figures/modeled_vs_measured_loads_18lakes_log10.png"), dpi=600, width=8,height=5, units="in")
+
+
+
+#Compare the C:P
+gg_title = str_wrap("modeled values are from preliminary Metropolis Results (wide range)", width=40)
+ 
+
+E<-inflow_comparison %>%
+  ggplot(aes(x=DOC_TP_measured,y=DOC_TP_modeled)) +
+  geom_point()+
+  geom_abline(intercept=0, slope=1)+
+  theme_few()+
+  geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)
+E + plot_annotation(title = gg_title)
+ggsave(here("figures/modeled_vs_measured_CtoP_18lakes.png"), dpi=600, width=5,height=5, units="in")
 
 ```
