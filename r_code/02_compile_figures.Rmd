@@ -2130,68 +2130,72 @@ inflow_conc_comparison <- inflow_conc_summary %>%
          Qin_m3sec=Qin,
          TPinflow_measured_mgm3=TP_mgm3,
          DOCinflow_measured_gm3=DOC_gm3) %>%
-  mutate(Qin_m3day=Qin_m3sec*86400) %>%
+  mutate(Qin_m3day=Qin_m3sec*86400,
+         DOC_load_kg_measured=DOC_load_kg_measured/n_days/1000,
+         TP_load_kg_measured=TP_load_kg_measured/n_days/1000000) %>%
   select(-Qin_m3sec,-dataset)
          
          
          
 inflow_comparison <- left_join(inflow_conc_comparison,modelled_loads_kg_comparison, by=c("lakeName")) %>%
     mutate(
-    DOCinflow_measured_gm3 = replace(DOCinflow_measured_gm3, lakeName=="EastLong", 13.60287933), #replace with modeled estimates for DOCin
-    TPinflow_measured_mgm3 = replace(TPinflow_measured_mgm3, lakeName=="EastLong", 18.074)) 
+    DOCinflow_measured_gm3 = replace(DOCinflow_measured_gm3, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
+    TPinflow_measured_mgm3 = replace(TPinflow_measured_mgm3, lakeName=="EastLong", 48.9))
 
-A<-inflow_comparison %>%
-  ggplot(aes(x=(DOC_load_kg_measured),y=(DOC_load_kg_modelled))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x=" measured DOC load (kg/day)",
-       y=" modeled DOC load (kg/day)")
+# A<-inflow_comparison %>%
+#   ggplot(aes(x=(DOC_load_kg_measured),y=(DOC_load_kg_modelled))) +
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)+
+#   theme_few()+
+#   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+#   labs(x=" measured DOC load (kg/day)",
+#        y=" modeled DOC load (kg/day)")
 
 B<-inflow_comparison %>%
   ggplot(aes(x=(DOCinflow_measured_gm3),y=(DOCinflow_modelled_gm3))) +
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
-  geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
   labs(x=" measured inflow DOC g/m3",
        y=" modeled inflow DOC g/m3")
 
-C<-inflow_comparison %>%
-  ggplot(aes(x=(TP_load_kg_measured),y=(TP_load_kg_modelled))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x=" measured TP load (kg/day)",
-       y=" modeled TP load (kg/day)")
+# C<-inflow_comparison %>%
+#   ggplot(aes(x=(TP_load_kg_measured),y=(TP_load_kg_modelled))) +
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)+
+#   theme_few()+
+#   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+#   labs(x=" measured TP load (kg/day)",
+#        y=" modeled TP load (kg/day)")
 
 D<-inflow_comparison %>%
   ggplot(aes(x=(TPinflow_measured_mgm3),y=(TPinflow_modelled_mgm3))) +
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
-  geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
   labs(x=" measured inflow TP mg/m3",
        y=" modeled inflow TP mg/m3")
 
-gg_title = str_wrap("Modeled vs. measured TP and DOC loads and inflow concentrations", width=100)
+gg_title = str_wrap("Modeled vs. measured TP and DOC inflow concentrations", width=100)
  
-(A+B)/(C+D) + plot_annotation(title = gg_title)
+# (A+B)/(C+D) + plot_annotation(title = gg_title)
+(B)/(D) 
+# + plot_annotation(title = gg_title)
   
 
-ggsave(here("figures/modeled_vs_measured_loads_18lakes.png"), dpi=600, width=8,height=8, units="in")
+ggsave(here("figures/modeled_vs_measured_loads_18lakes.png"), dpi=600, width=8,height=5, units="in")
 
 
 #Plot it on the log scale
-A<-inflow_comparison %>%
-  ggplot(aes(x=log10(DOC_load_kg_measured),y=log10(DOC_load_kg_modelled))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  labs(x="log10 measured DOC load (kg/day)",
-       y="log10 modeled DOC load (kg/day)")
+# A<-inflow_comparison %>%
+#   ggplot(aes(x=log10(DOC_load_kg_measured),y=log10(DOC_load_kg_modelled))) +
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)+
+#   theme_few()+
+#   labs(x="log10 measured DOC load (kg/day)",
+#        y="log10 modeled DOC load (kg/day)")
 
 B<-inflow_comparison %>%
   ggplot(aes(x=log10(DOCinflow_measured_gm3),y=log10(DOCinflow_modelled_gm3))) +
@@ -2201,13 +2205,13 @@ B<-inflow_comparison %>%
   labs(x="log10 measured inflow DOC g/m3",
        y="log10 modeled inflow DOC g/m3")
 
-C<-inflow_comparison %>%
-  ggplot(aes(x=log10(TP_load_kg_measured),y=log10(TP_load_kg_modelled))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  labs(x="log10 measured TP load (kg/day)",
-       y="log10 modeled TP load (kg/day)")
+# C<-inflow_comparison %>%
+#   ggplot(aes(x=log10(TP_load_kg_measured),y=log10(TP_load_kg_modelled))) +
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)+
+#   theme_few()+
+#   labs(x="log10 measured TP load (kg/day)",
+#        y="log10 modeled TP load (kg/day)")
 
 D<-inflow_comparison %>%
   ggplot(aes(x=log10(TPinflow_measured_mgm3),y=log10(TPinflow_modelled_mgm3))) +
@@ -2219,9 +2223,9 @@ D<-inflow_comparison %>%
 
 gg_title = str_wrap("Modeled vs. measured TP and DOC loads and inflow concentrations", width=100)
  
-(A+B)/(C+D) + plot_annotation(title = gg_title)
-  
+# (A+B)/(C+D) + plot_annotation(title = gg_title)
+B/D
 
-ggsave(here("figures/modeled_vs_measured_loads_18lakes_log10.png"), dpi=600, width=8,height=8, units="in")
+ggsave(here("figures/modeled_vs_measured_loads_18lakes_log10.png"), dpi=600, width=8,height=5, units="in")
 
 ```
