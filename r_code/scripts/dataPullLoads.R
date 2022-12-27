@@ -1,6 +1,8 @@
 
 # Load raw data -----------------------------------------------------------
 
+gridSearchInput<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_wphyto4bella.csv")) 
+#Use this to verify that the new load concentration calculations are indeed FLOW WEIGHTED
 
 # ~Zwart loads  -------------------------------------------------
 
@@ -521,39 +523,27 @@ zwart_load_trim <- zwart_load %>%
   rename(lakeName=lake)
 
 
-zwart_load_summary<-zwart_load_trim %>%
+# zwart_load_summary<-zwart_load_trim %>%
+#   filter(doy >= 121 & doy <= 274) %>%
+#   group_by(lakeName) %>%
+#   summarize(DOC_load_kg_total=sum(DOC_load, na.rm=TRUE),
+#             TP_load_kg_total=sum(TP_load, na.rm=TRUE),
+#             TN_load_kg_total=sum(TN_load, na.rm=TRUE))%>%
+#   mutate(DOC_TP_massmass= DOC_load_kg_total/TP_load_kg_total) 
+
+
+zwart_load_summary <- zwart_load %>%
   filter(doy >= 121 & doy <= 274) %>%
+  select(lake, doy, date, inflow, TN_load, TP_load, DOC_load) %>%
+  rename(lakeName=lake) %>%
   group_by(lakeName) %>%
-  summarize(DOC_load_kg_total=sum(DOC_load, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load, na.rm=TRUE))%>%
-  mutate(DOC_TP_massmass= DOC_load_kg_total/TP_load_kg_total) 
+  summarize(DOC_load=sum(DOC_load, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(inflow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from doy 121-274
+         TP_mgm3=(TP_load/Qin)) #Flow weighted inflow TP concentration from doy 121-274
 
-
-# zwart_load_summary %>% 
-#   pivot_longer( DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   facet_wrap(.~lakeName, scales="free_y")
-# 
-# 
-# #Totals and ratio-- TABLE
-# zwart_load_summary%>%
-#   mutate(`TP (kg)`=comma(TP_load_kg_total),
-#          `TN (kg)`=comma(TN_load_kg_total),
-#          `DOC (kg)`=comma(DOC_load_kg_total),
-#          `DOC:TP (mass:mass)`= comma(DOC_TP_massmass))%>%
-#   select(-DOC_load_kg_total, -TP_load_kg_total, -TN_load_kg_total,  -DOC_TP_massmass) %>%
-#   hux() %>% 
-#   # add_colnames() %>% 
-#   set_bold(row = 1, col = everywhere, value = TRUE) %>% 
-#   set_all_borders(TRUE) %>%
-#   theme_plain()
 
 
 # ~ Mueggelsee --------------------------------------------------------------
@@ -577,40 +567,14 @@ mueggelsee_load_manual<- imputeTS::na_interpolation(mueggelsee_load_trim, "linea
 #Totals and ratio
 mueggelsee_load_summary<-mueggelsee_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean) 
-
-
-# mueggelsee_load_summary %>%
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Mueggelsee")
-# 
-# #Totals and ratio-- TABLE
-mueggelsee_load_summary%>%
-  select(lakeName, contains("_total"))%>%
-  mutate(`TP (kg)`=comma(TP_load_kg_total),
-         `TN (kg)`=comma(TN_load_kg_total),
-         `DOC (kg)`=comma(DOC_load_kg_total),
-         `DOC:TP (mass:mass)`= comma(DOC_TP_massmass_total))%>%
-  select(-DOC_load_kg_total, -TP_load_kg_total, -TN_load_kg_total,  -DOC_TP_massmass_total) %>%
-  hux() %>%
-  set_bold(row = 1, col = everywhere, value = TRUE) %>%
-  set_all_borders(TRUE) %>%
-  theme_plain()
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from May1-Oct1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from May1-Oct1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from May1-Oct1
 
 
 # ~ The Loch --------------------------------------------------------------
@@ -632,88 +596,15 @@ loch_load_manual<- imputeTS::na_interpolation(loch_load_trim, "linear") %>%
 #Totals and ratio
 loch_load_summary<-loch_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE),
-            
-            DOCin_mean_mgL=mean(DOC_mgL, na.rm=TRUE),
-            TPin_mean_mgL=mean(TP_mgL, na.rm=TRUE),
-            Qin_mean_m3day=mean(flow*86400, na.rm=TRUE),
-            
-            DOCin_sum_mgL=sum(DOC_mgL, na.rm=TRUE),
-            TPin_sum_mgL=sum(TP_mgL, na.rm=TRUE),
-            Qin_sum_m3=sum(flow, na.rm=TRUE),
-            
-            DOCin_volumeweighted_mgL=DOCin_sum_mgL/Qin_sum_m3,
-            TPin_volumeweighted_mgL=TPin_sum_mgL/Qin_sum_m3) %>%
-  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean)
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from May1-Oct1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from May1-Oct1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from May1-Oct1
 
-#compare
-loch_load_summary %>% select(DOCin_volumeweighted_mgL, DOCin_mean_mgL)
-loch_load_summary %>% select(TPin_volumeweighted_mgL, TPin_mean_mgL)
-##NOT THE SAME
-
-loch_load_manual %>%
-  mutate(datetime=yday(datetime))%>%
-  ggplot(aes(x=datetime, y=DOC_load_kgday))+
-  geom_point(shape=21, size=2.5)+
-  theme_pubr(base_size = 18)+
-  labs(y="DOC load (kg/day)",
-       x="Date",
-       title="The Loch")+
-  geom_text(data=loch_load_summary %>%
-              mutate(DOC_load_kg_total=round(DOC_load_kg_total,0)),
-            aes(label= paste0("Total DOC (kg)=", DOC_load_kg_total)),
-            x=225,
-            y=120,
-            size=8)
-
-loch_load_manual %>%
-  mutate(datetime=yday(datetime))%>%
-  ggplot(aes(x=datetime, y=TP_load_kgday))+
-  geom_point(shape=21, size=2.5)+
-  theme_pubr(base_size = 18)+
-  labs(y="TP load (kg/day)",
-       x="Date",
-       title="The Loch")+
-  geom_text(data=loch_load_summary %>%
-              mutate(TP_load_kg_total=round(TP_load_kg_total,0)),
-            aes(label= paste0("Total TP (kg)=", TP_load_kg_total)),
-            x=225,
-            y=0.8,
-            size=8)
-
-# 
-loch_load_summary %>%
-  pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-  ggplot(aes(x=name, y=value, fill=name)) +
-  geom_bar(stat="identity",color="black") +
-  xlab("Nutrient") +
-  scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-  theme(axis.text.x=element_text(angle = 45, hjust = 1),
-        legend.position="none")+
-  scale_fill_manual(values=c("grey20","grey50","grey90"))+
-  # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-  ggtitle("TheLoch")
-
-#Totals and ratio-- TABLE
-loch_load_summary%>%
-  select(lakeName, contains("_total"))%>%
-  mutate(`TP (kg)`=comma(TP_load_kg_total),
-         `TN (kg)`=comma(TN_load_kg_total),
-         `DOC (kg)`=comma(DOC_load_kg_total),
-         `DOC:TP (mass:mass)`= comma(DOC_TP_massmass_total))%>%
-  select(-DOC_load_kg_total, -TP_load_kg_total, -TN_load_kg_total,  -DOC_TP_massmass_total) %>%
-  hux() %>%
-  set_bold(row = 1, col = everywhere, value = TRUE) %>%
-  set_all_borders(TRUE) %>%
-  theme_plain()
 
 
 
@@ -736,17 +627,14 @@ erken_load_manual<- imputeTS::na_interpolation(erken_load_trim, "linear") %>%
 #Totals and ratio
 erken_load_summary<-erken_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE),
-            DOCin_mean_mgL=mean(DOC_mgL, na.rm=TRUE),
-            TPin_mean_mgL=mean(TP_mgL, na.rm=TRUE),
-            Qin_mean_m3day=mean(flow*86400, na.rm=TRUE))%>%
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean)
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from May1-Oct1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from May1-Oct1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from May1-Oct1
 
 #  ~ Taupo ----------------------------------------------------------------
 
@@ -771,14 +659,14 @@ Taupo_Hinemaiaia_load_manual<- imputeTS::na_interpolation(Taupo_Hinemaiaia_load_
 #Totals and ratio
 Taupo_Hinemaiaia_load_summary<-Taupo_Hinemaiaia_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean) 
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 # --> Tauranga ------------------------------------------------------------
 
@@ -800,14 +688,14 @@ Taupo_Tauranga_load_manual<- imputeTS::na_interpolation(Taupo_Tauranga_load_trim
 #Totals and ratio
 Taupo_Tauranga_load_summary<-Taupo_Tauranga_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean) 
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1 
 
 
 
@@ -832,41 +720,14 @@ Taupo_Kuratau_load_manual<- imputeTS::na_interpolation(Taupo_Kuratau_load_trim, 
 #Totals and ratio
 Taupo_Kuratau_load_summary<-Taupo_Kuratau_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean) 
-
-# 
-# Taupo_Kuratau_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Kuratau")
-# 
-# Taupo_Kuratau_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Kuratau")
-
-
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 # > Tokaanu Power Station (no DOC) ----------------------------------------
 
@@ -888,40 +749,15 @@ Taupo_TokaanuPowerStation_load_manual<- imputeTS::na_interpolation(Taupo_Tokaanu
 #Totals and ratio
 Taupo_TokaanuPowerStation_load_summary<-Taupo_TokaanuPowerStation_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=NA,
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=NA,
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = NA,
-         DOC_TP_massmass_mean = NA) 
+  summarize(DOC_load=NA, #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=NA, #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
-# 
-# Taupo_TokaanuPowerStation_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_TokaanuPowerStation")
-# 
-# Taupo_TokaanuPowerStation_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_TokaanuPowerStation")
-# 
 
 # > Tongariro (no DOC) ----------------------------------------------------
 
@@ -943,40 +779,14 @@ Taupo_Tongariro_load_manual<- imputeTS::na_interpolation(Taupo_Tongariro_load_tr
 #Totals and ratio
 Taupo_Tongariro_load_summary<-Taupo_Tongariro_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=NA,
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=NA,
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = NA,
-         DOC_TP_massmass_mean = NA) 
-
-# 
-# Taupo_Tongariro_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Tongariro")
-# 
-# Taupo_Tongariro_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Tongariro")
-
+  summarize(DOC_load=NA, #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=NA, #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 
 # > Whareroa (no DOC) -----------------------------------------------------
@@ -999,40 +809,14 @@ Taupo_Whareroa_load_manual<- imputeTS::na_interpolation(Taupo_Whareroa_load_trim
 #Totals and ratio
 Taupo_Whareroa_load_summary<-Taupo_Whareroa_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=NA,
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=NA,
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = NA,
-         DOC_TP_massmass_mean = NA) 
-
-# 
-# Taupo_Whareroa_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Whareroa")
-# 
-# Taupo_Whareroa_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Whareroa")
-
+  summarize(DOC_load=NA, #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=NA, #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 
 # > Whangamata (mod Q, no DOC) --------------------------------------------
@@ -1057,40 +841,14 @@ Taupo_Whangamata_load_manual<- imputeTS::na_interpolation(Taupo_Whangamata_load_
 #Totals and ratio
 Taupo_Whangamata_load_summary<-Taupo_Whangamata_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=NA,
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=NA,
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = NA,
-         DOC_TP_massmass_mean = NA) 
-# 
-# 
-# Taupo_Whangamata_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Whangamata")
-# 
-# Taupo_Whangamata_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Whangamata")
-
+  summarize(DOC_load=NA, #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=NA, #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 
 
@@ -1114,40 +872,14 @@ Taupo_Mapara_load_manual<- imputeTS::na_interpolation(Taupo_Mapara_load_trim, "l
 #Totals and ratio
 Taupo_Mapara_load_summary<-Taupo_Mapara_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean) 
-
-
-# 
-# Taupo_Mapara_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Mapara")
-# 
-# Taupo_Mapara_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Mapara")
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 
 
@@ -1172,42 +904,15 @@ Taupo_Waihaha_load_manual<- imputeTS::na_interpolation(Taupo_Waihaha_load_trim, 
 #Totals and ratio
 Taupo_Waihaha_load_summary<-Taupo_Waihaha_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean) 
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
-
-# 
-# Taupo_Waihaha_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Waihaha")
-# 
-# Taupo_Waihaha_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Waihaha")
-# 
-# 
 
 
 # > Whanganui (mod Q, no DOC) ---------------------------------------------
@@ -1230,40 +935,14 @@ Taupo_Whanganui_load_manual<- imputeTS::na_interpolation(Taupo_Whanganui_load_tr
 #Totals and ratio
 Taupo_Whanganui_load_summary<-Taupo_Whanganui_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=NA,
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=NA,
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = NA,
-         DOC_TP_massmass_mean = NA) 
-
-
-# Taupo_Whanganui_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Whanganui")
-# 
-# Taupo_Whanganui_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Whanganui")
-
+  summarize(DOC_load=NA, #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=NA, #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 
 # > Waitahanui (mod Q) ----------------------------------------------------
@@ -1286,41 +965,14 @@ Taupo_Waitahanui_load_manual<- imputeTS::na_interpolation(Taupo_Waitahanui_load_
 #Totals and ratio
 Taupo_Waitahanui_load_summary<-Taupo_Waitahanui_load_manual%>%
   group_by(lakeName)%>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kgday, na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kgday, na.rm=TRUE),
-            DOC_load_kgday_mean=mean(DOC_load_kgday, na.rm=TRUE),
-            TP_load_kgday_mean=mean(TP_load_kgday, na.rm=TRUE),
-            TN_load_kgday_mean=mean(TN_load_kgday, na.rm=TRUE))%>%  
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TP_load_kgday_mean) 
-
-
-
-# Taupo_Waitahanui_load_summary %>% 
-#   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Total~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Waitahanui")
-# 
-# Taupo_Waitahanui_load_summary %>% 
-#   pivot_longer(DOC_load_kgday_mean:TN_load_kgday_mean)%>%
-#   ggplot(aes(x=name, y=value, fill=name)) +
-#   geom_bar(stat="identity",color="black") +
-#   xlab("Nutrient") +
-#   scale_y_continuous(expression(Mean~daily~nutrient~load~(kg)), labels = scales::comma)+
-#   theme(axis.text.x=element_text(angle = 45, hjust = 1),
-#         legend.position="none")+
-#   scale_fill_manual(values=c("grey20","grey50","grey90"))+
-#   # geom_text(label=round(Taupo_met6$value*10^-6,1), vjust=-1.5)+
-#   ggtitle("Taupo_Waitahanui")
-
+  summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE)*(1000), #kg/day  * 1000g/1kg = [g/day]
+            TP_load=sum(TP_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            TN_load=sum(TN_load_kgday, na.rm=TRUE)*(1000000),  #kg/day * 1000g/1kg = [mg/day]
+            Qin=sum(flow, na.rm=TRUE)*86400,
+            n_days=n()) %>%  # [m3/s] * 86400s/1day = [m3/day]
+  mutate(DOC_gm3=(DOC_load/Qin), #Flow weighted inflow DOC concentration from Nov1-May1
+         TP_mgm3=(TP_load/Qin), #Flow weighted inflow TP concentration from Nov1-May1
+         TN_mgm3=(TN_load/Qin))  #Flow weighted inflow TN concentration from Nov1-May1
 
 
 # > All Taupo tributaries -------------------------------------
@@ -1337,31 +989,36 @@ Taupo_load_summary <- bind_rows(Taupo_Hinemaiaia_load_summary,
                                 Taupo_Waihaha_load_summary,
                                 Taupo_Whanganui_load_summary,
                                 Taupo_Waitahanui_load_summary) %>%
-  summarize(DOC_load_kg_total=sum(DOC_load_kg_total, na.rm=TRUE),
-            TP_load_kg_total=sum(TP_load_kg_total,na.rm=TRUE),
-            TN_load_kg_total=sum(TN_load_kg_total, na.rm=TRUE),
-            n_days=n(),
-            DOC_load_kgday_mean=sum(DOC_load_kgday_mean, na.rm=TRUE),
-            TP_load_kgday_mean=sum(TP_load_kgday_mean, na.rm=TRUE),
-            TN_load_kgday_mean=sum( TN_load_kgday_mean, na.rm=TRUE)) %>%
-  mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
-         DOC_TP_massmass_mean = DOC_load_kgday_mean/TN_load_kgday_mean) %>%
-  mutate(lakeName="Taupo")
+  mutate(lakeName="Taupo") %>%
+  group_by(lakeName) %>%
+  mutate(across(DOC_load:TN_mgm3, mean, na.rm=TRUE)) %>%
+  distinct(lakeName, .keep_all = TRUE) #For some reason a million duplicates were showing up
+  
+  # summarize(DOC_load_kg_total=sum(DOC_load_kg_total, na.rm=TRUE),
+  #           TP_load_kg_total=sum(TP_load_kg_total,na.rm=TRUE),
+  #           TN_load_kg_total=sum(TN_load_kg_total, na.rm=TRUE),
+  #           n_days=n(),
+  #           DOC_load_kgday_mean=sum(DOC_load_kgday_mean, na.rm=TRUE),
+  #           TP_load_kgday_mean=sum(TP_load_kgday_mean, na.rm=TRUE),
+  #           TN_load_kgday_mean=sum( TN_load_kgday_mean, na.rm=TRUE)) %>%
+  # mutate(DOC_TP_massmass_total = DOC_load_kg_total/TP_load_kg_total,
+  #        DOC_TP_massmass_mean = DOC_load_kgday_mean/TN_load_kgday_mean) %>%
 
-Taupo_total_tribs<-Taupo_load_summary%>%
-  select(lakeName, contains("_total"))
-Taupo_load_tribs <- bind_rows(Taupo_Hinemaiaia_load_summary,
-                              Taupo_Tauranga_load_summary,
-                              Taupo_Kuratau_load_summary,
-                              Taupo_TokaanuPowerStation_load_summary,
-                              Taupo_Tongariro_load_summary,
-                              Taupo_Whareroa_load_summary,
-                              Taupo_Whangamata_load_summary,
-                              Taupo_Mapara_load_summary,
-                              Taupo_Waihaha_load_summary,
-                              Taupo_Whanganui_load_summary,
-                              Taupo_Waitahanui_load_summary) %>%
-  select(lakeName, contains("_total"))
+
+# Taupo_total_tribs<-Taupo_load_summary%>%
+#   select(lakeName, contains("_total"))
+# Taupo_load_tribs <- bind_rows(Taupo_Hinemaiaia_load_summary,
+#                               Taupo_Tauranga_load_summary,
+#                               Taupo_Kuratau_load_summary,
+#                               Taupo_TokaanuPowerStation_load_summary,
+#                               Taupo_Tongariro_load_summary,
+#                               Taupo_Whareroa_load_summary,
+#                               Taupo_Whangamata_load_summary,
+#                               Taupo_Mapara_load_summary,
+#                               Taupo_Waihaha_load_summary,
+#                               Taupo_Whanganui_load_summary,
+#                               Taupo_Waitahanui_load_summary) %>%
+#   select(lakeName, contains("_total"))
 
 # bind_rows(Taupo_load_tribs) %>% 
 #   pivot_longer(DOC_load_kg_total:TN_load_kg_total)%>%
@@ -1483,90 +1140,79 @@ observed_loads_kelly<-read.csv(here('data/preliminaryMetropolisResults/KellyPara
 
 # MASTER LOADS ------------------------------------------------------------
 
+##### This script does the same thing that I now do above.
 
-zwart_sum<-zwart_load %>%
-  rename(lakeName=lake)%>%
-  filter(doy >= 121 & doy <= 274) %>%
-  group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load, na.rm=TRUE), #kg/day
-            Qin=mean(inflow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
-
-#Do we want to do it like this to truly calculate volume-weighted conc.?
-zwart_sum_ALT<-zwart_load %>%
-  rename(lakeName=lake)%>%
-  filter(doy >= 121 & doy <= 274) %>%
-  group_by(lakeName) %>%
-  summarize(DOC_load=sum(DOC_load, na.rm=TRUE), #kg/day 
-            TP_load=sum(TP_load, na.rm=TRUE), #kg/day
-            Qin=sum(inflow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin),
-         TP_mgm3=(TP_load/Qin)) 
-
-# zwart_sum_ALT <- zwart_load %>%
+#Flow weighted concentrations
+# zwart_sum<-zwart_load %>%
 #   rename(lakeName=lake)%>%
 #   filter(doy >= 121 & doy <= 274) %>%
-#   mutate(DOC_dailyFlux_g=)
 #   group_by(lakeName) %>%
-  
-
-
-mueggelsee_sum<-mueggelsee_load_manual %>%
-  group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
-
-loch_sum <- loch_load_manual %>%
-  group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
-
-erken_sum <- erken_load_manual %>%
-  group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
-
-
-taupo_sum<-bind_rows(Taupo_Hinemaiaia_load_manual,
-                     Taupo_Tauranga_load_manual,
-                     Taupo_Kuratau_load_manual,
-                     Taupo_TokaanuPowerStation_load_manual,
-                     Taupo_Tongariro_load_manual,
-                     Taupo_Whareroa_load_manual,
-                     Taupo_Whangamata_load_manual,
-                     Taupo_Mapara_load_manual,
-                     Taupo_Waihaha_load_manual,
-                     Taupo_Whanganui_load_manual,
-                     Taupo_Waitahanui_load_manual) %>%
-  group_by(lakeName) %>%
-  summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day #calculating mean daily loads for each tributary
-            TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
-            Qin=mean(flow, na.rm=TRUE)) %>%#m3/s
-  ungroup()%>%
-  summarize(DOC_load=sum(DOC_load, na.rm=TRUE), #kg/day #summing mean daily loads for each tributary
-            TP_load=sum(TP_load, na.rm=TRUE), #kg/day
-            # DOC_gm3=sum(DOC_gm3, na.rm=TRUE), #g/m3
-            # TP_gm3=sum(TP_gm3, na.rm=TRUE), #g/m3
-            Qin=sum(Qin, na.rm=TRUE))%>% #m3/s
-  mutate(lakeName="Taupo") %>%
-  mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400), #calculate mean daily inflow concentration
-         TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
-
+#   summarize(DOC_load=sum(DOC_load, na.rm=TRUE), #kg/day 
+#             TP_load=sum(TP_load, na.rm=TRUE), #kg/day
+#             Qin=sum(inflow, na.rm=TRUE)) %>% #m3/s
+#   mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
+#          TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+# 
+# mueggelsee_sum<-mueggelsee_load_manual %>%
+#   group_by(lakeName) %>%
+#   summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
+#             TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+#             Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
+#   mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
+#          TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+# 
+# loch_sum <- loch_load_manual %>%
+#   group_by(lakeName) %>%
+#   summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
+#             TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+#             Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
+#   mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
+#          TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+# 
+# erken_sum <- erken_load_manual %>%
+#   group_by(lakeName) %>%
+#   summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day 
+#             TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+#             Qin=mean(flow, na.rm=TRUE)) %>% #m3/s
+#   mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400),
+#          TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) 
+# 
+# 
+# taupo_sum<-bind_rows(Taupo_Hinemaiaia_load_manual,
+#                      Taupo_Tauranga_load_manual,
+#                      Taupo_Kuratau_load_manual,
+#                      Taupo_TokaanuPowerStation_load_manual,
+#                      Taupo_Tongariro_load_manual,
+#                      Taupo_Whareroa_load_manual,
+#                      Taupo_Whangamata_load_manual,
+#                      Taupo_Mapara_load_manual,
+#                      Taupo_Waihaha_load_manual,
+#                      Taupo_Whanganui_load_manual,
+#                      Taupo_Waitahanui_load_manual) %>%
+#   group_by(lakeName) %>%
+#   # summarize(DOC_load=mean(DOC_load_kgday, na.rm=TRUE), #kg/day #calculating mean daily loads for each tributary
+#   #           TP_load=mean(TP_load_kgday, na.rm=TRUE), #kg/day
+#   #           Qin=mean(flow, na.rm=TRUE)) %>%#m3/s
+#   # ungroup()%>%
+#   summarize(DOC_load=sum(DOC_load_kgday, na.rm=TRUE), #kg/day #summing mean daily loads for each tributary
+#             TP_load=sum(TP_load_kgday, na.rm=TRUE), #kg/day
+#             # DOC_gm3=sum(DOC_gm3, na.rm=TRUE), #g/m3
+#             # TP_gm3=sum(TP_gm3, na.rm=TRUE), #g/m3
+#             Qin=sum(flow, na.rm=TRUE))%>% #m3/s
+#   mutate(DOC_gm3=(DOC_load/Qin)*(1000/86400), #calculate mean daily inflow concentration
+#          TP_mgm3=(TP_load/Qin)*(1000/86400)*1000) %>%
+#   mutate(lakeName="Taupo",
+#          DOC_gm3=na_if(DOC_gm3,0)) %>% #Make sure the DOC values that got forced to zero are actually NAs
+#   group_by(lakeName) %>%
+#   mutate(across(DOC_load:TP_mgm3, mean, na.rm=TRUE)) 
 
 
 #Long version of measured dataset
-inflow_conc_summary<-bind_rows(zwart_sum,mueggelsee_sum,loch_sum, taupo_sum, erken_sum) %>%
+# inflow_conc_summary<-bind_rows(zwart_sum,mueggelsee_sum,loch_sum, taupo_sum, erken_sum) %>%
+#   mutate(dataset="measured") 
+
+inflow_conc_summary<-bind_rows(zwart_load_summary,mueggelsee_load_summary,loch_load_summary,
+                               Taupo_load_summary, erken_load_summary) %>%
   mutate(dataset="measured") 
 
 inflow_conc_summary_long<- inflow_conc_summary%>%
@@ -1599,4 +1245,6 @@ load_comparisons_wide<-bind_rows(inflow_conc_summary %>%
                                           Qin_m3s=Qin),
                                  modelled_loads_kg) %>%
   select(-4, -(8:10))
+
+
 
