@@ -2160,8 +2160,9 @@ B<-inflow_comparison %>%
   geom_abline(intercept=0, slope=1)+
   theme_few()+
   # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x=" measured inflow DOC g/m3",
-       y=" modeled inflow DOC g/m3")
+  labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
+       y=expression(paste('Modeled inflow DOC g m'^-3,)))
+
 
 # C<-inflow_comparison %>%
 #   ggplot(aes(x=(TP_load_kg_measured),y=(TP_load_kg_modelled))) +
@@ -2178,8 +2179,8 @@ D<-inflow_comparison %>%
   geom_abline(intercept=0, slope=1)+
   theme_few()+
   # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x=" measured inflow TP mg/m3",
-       y=" modeled inflow TP mg/m3")
+  labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
+       y=expression(paste('Modeled inflow TP mg m'^-3,)))
 
 
 gg_title = str_wrap("Modeled vs. measured TP and DOC inflow concentrations", width=100)
@@ -2206,8 +2207,8 @@ B<-inflow_comparison %>%
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
-  labs(x="log10 measured inflow DOC g/m3",
-       y="log10 modeled inflow DOC g/m3")
+  labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
+       y=expression(paste('Modeled inflow DOC g m'^-3,)))
 
 # C<-inflow_comparison %>%
 #   ggplot(aes(x=log10(TP_load_kg_measured),y=log10(TP_load_kg_modelled))) +
@@ -2222,8 +2223,8 @@ D<-inflow_comparison %>%
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
-  labs(x="log10 measured inflow TP mg/m3",
-       y="log10 modeled inflow TP mg/m3")
+  labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
+       y=expression(paste('Modeled inflow TP mg m'^-3,)))
 
 gg_title = str_wrap("Modeled vs. measured TP and DOC loads and inflow concentrations", width=100)
  
@@ -2243,7 +2244,9 @@ E<-inflow_comparison %>%
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
-  geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)
+  geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+  labs(x="Measured DOC:TP",
+       y="Modeled DOC:TP")
 E + plot_annotation(title = gg_title)
 ggsave(here("figures/modeled_vs_measured_CtoP_18lakes.png"), dpi=600, width=5,height=5, units="in")
 
