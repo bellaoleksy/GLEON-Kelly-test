@@ -1392,55 +1392,37 @@ Taupo_load_tribs <- bind_rows(Taupo_Hinemaiaia_load_summary,
 
 
 # Huisman load estimates --------------------------------------------------
-#Read in metadata google sheet
-# metadata<-read_sheet("https://docs.google.com/spreadsheets/d/1is87WT3n_TU76pTyiis3Os08JJiSmWc2G6K4bthJhU8/edit#gid=952562522") 
 
-# load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20210513.csv'), header=T,sep=",") #Version that Stuart helped me correct, with the modified Kelly model params
 # load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20210816.csv'), header=T,sep=",") #Version with the ORIGINAL Kelly model params
 # load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20220726.csv'), header=T,sep=",") #Version with the updated parameter optimization by SEJ
-load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20220801_kellyset.csv'), header=T,sep=",") #Re-ran the kelly set load estimates on this day
-load_estimates_huisman<-load_estimates_huisman[1:2,]
-str(load_estimates_huisman)
-# load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20210503.csv'), header=T,sep=",")
-# load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20210428.csv'), header=T,sep=",")
-# load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20210406.csv'), header=T,sep=",")
-load_estimates_huisman <- load_estimates_huisman %>%
-  # mutate_if(is.character, as.numeric)
-  mutate_at(vars(-variable), as.numeric) %>%
-  pivot_longer(-variable) %>%
-  rename(lakeName=name)%>%
-  separate(lakeName, c("lakeName","delete"),"_") %>% #split into two columns by underscore ("_")
-  select(-delete) %>%
-  mutate(lakeName=  str_to_sentence(lakeName), #capitalize all the lake names if they aren't already
-         lakeName = replace(lakeName, lakeName=="Theloch", 'TheLoch'), #But still need to fix a few names
-         lakeName = replace(lakeName, lakeName=="Crystalbog", 'CrystalBog'),
-         lakeName = replace(lakeName, lakeName=="Fredriksburgslotso", 'FredriksburgSlotso'),
-         lakeName = replace(lakeName, lakeName=="Littlerock", 'LittleRock'),
-         lakeName = replace(lakeName, lakeName=="Skypond", 'SkyPond'),
-         lakeName = replace(lakeName, lakeName=="Stgribso", 'StGribso'),
-         lakeName = replace(lakeName, lakeName=="Troutbog", 'TroutBog'),
-         lakeName = replace(lakeName, lakeName=="Westlong", "WestLong"),
-         lakeName = replace(lakeName, lakeName=="Eastlong", "EastLong"),
-         lakeName = replace(lakeName, lakeName=="Yunyang", "YunYang"))%>%
-  pivot_wider(id_cols=lakeName, names_from=variable, values_from=value)
+# load_estimates_huisman<-read.csv(here('data/load_estimates/load_estimates_20220801_kellyset.csv'), header=T,sep=",") #Re-ran the kelly set load estimates on this day
 
-# load_estimates_huisman_P <- load_estimates_huisman %>%
-#   filter(variable=="TP_mgm3") %>%
-#   # rename(lakeName=name,
-#   #        TP_gm3=value) %>%
-#   rename(TP_mgm3=value) %>%
-#   select(-variable)
-# load_estimates_huisman_C <- load_estimates_huisman %>%
-#   filter(variable=="DOC_gm3") %>%
-#   # rename(lakeName=name,
-#   #        DOC_gm3=value) %>%
-#   rename(DOC_gm3=value) %>%
-#   select(-variable)
-# 
-# load_estimates_huisman <- load_estimates_huisman 
+# load_estimates_huisman<-load_estimates_huisman[1:2,]
+# str(load_estimates_huisman)
+# load_estimates_huisman <- load_estimates_huisman %>%
+#   # mutate_if(is.character, as.numeric)
+#   mutate_at(vars(-variable), as.numeric) %>%
+#   pivot_longer(-variable) %>%
+#   rename(lakeName=name)%>%
+#   separate(lakeName, c("lakeName","delete"),"_") %>% #split into two columns by underscore ("_")
+#   select(-delete) %>%
+#   mutate(lakeName=  str_to_sentence(lakeName), #capitalize all the lake names if they aren't already
+#          lakeName = replace(lakeName, lakeName=="Theloch", 'TheLoch'), #But still need to fix a few names
+#          lakeName = replace(lakeName, lakeName=="Crystalbog", 'CrystalBog'),
+#          lakeName = replace(lakeName, lakeName=="Fredriksburgslotso", 'FredriksburgSlotso'),
+#          lakeName = replace(lakeName, lakeName=="Littlerock", 'LittleRock'),
+#          lakeName = replace(lakeName, lakeName=="Skypond", 'SkyPond'),
+#          lakeName = replace(lakeName, lakeName=="Stgribso", 'StGribso'),
+#          lakeName = replace(lakeName, lakeName=="Troutbog", 'TroutBog'),
+#          lakeName = replace(lakeName, lakeName=="Westlong", "WestLong"),
+#          lakeName = replace(lakeName, lakeName=="Eastlong", "EastLong"),
+#          lakeName = replace(lakeName, lakeName=="Yunyang", "YunYang"))%>%
+#   pivot_wider(id_cols=lakeName, names_from=variable, values_from=value)
 
-
-# load_estimates_huisman<-full_join(load_estimates_huisman_P, load_estimates_huisman_C, by="lakeName") %>% arrange(lakeName)
+load_estimates_huisman<-read.csv(here('data/preliminaryMetropolisResults/ExtendedRangeParameter_outputWestimatedloads.csv'), header=T,sep=",") %>%
+  select(lakeName,Pin,DOCin) %>%
+  rename(TP_mgm3=Pin,
+         DOC_gm3=DOCin)
 
 modelled_loads_kg<-left_join(load_estimates_huisman,metadata %>%
                                select(lakeName,`Volume (m3)`, `Lake residence time (year)`), by="lakeName") %>%
@@ -1453,6 +1435,51 @@ modelled_loads_kg<-left_join(load_estimates_huisman,metadata %>%
          dataset="modelled")
 
 
+observed_loads_kelly<-read.csv(here('data/preliminaryMetropolisResults/KellyParameter_outputWobservedloads.csv'), header=T,sep=",") %>%
+  select(lakeName,Pin,DOCin) %>%
+  rename(TP_mgm3=Pin,
+         DOC_gm3=DOCin)
+# 
+# compare <- full_join(observed_loads_kelly%>%
+#                        rename(TPin_obs=TP_mgm3,
+#                               DOCin_obs=DOC_gm3),
+#                      load_estimates_huisman%>%
+#                        rename(TPin_mod=TP_mgm3,
+#                               DOCin_mod=DOC_gm3)) %>%
+#   drop_na()
+# 
+# compare %>%
+#   ggplot(aes(x=TPin_obs, y=TPin_mod))+
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)
+# 
+# compare %>%
+#   ggplot(aes(x=DOCin_obs, y=DOCin_mod))+
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)
+
+# observed_loads_litRange<-read.csv(here('data/preliminaryMetropolisResults/LitRangeParameter_outputWobservedloads.csv'), header=T,sep=",") %>%
+#   select(lakeName,Pin,DOCin) %>%
+#   rename(TP_mgm3=Pin,
+#          DOC_gm3=DOCin) 
+# 
+# compare2 <- full_join(observed_loads_kelly%>%
+#                        rename(TPin_kelly=TP_mgm3,
+#                               DOCin_kelly=DOC_gm3),
+#                       observed_loads_litRange%>%
+#                        rename(TPin_lit=TP_mgm3,
+#                               DOCin_lit=DOC_gm3)) %>%
+#   drop_na()
+# 
+# compare2 %>%
+#   ggplot(aes(x=TPin_kelly, y=TPin_lit))+
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)
+# 
+# compare2 %>%
+#   ggplot(aes(x=DOCin_kelly, y=DOCin_lit))+
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)
 
 # MASTER LOADS ------------------------------------------------------------
 
@@ -1478,11 +1505,11 @@ zwart_sum_ALT<-zwart_load %>%
   mutate(DOC_gm3=(DOC_load/Qin),
          TP_mgm3=(TP_load/Qin)) 
 
-zwart_sum_ALT <- zwart_load %>%
-  rename(lakeName=lake)%>%
-  filter(doy >= 121 & doy <= 274) %>%
-  mutate(DOC_dailyFlux_g=)
-  group_by(lakeName) %>%
+# zwart_sum_ALT <- zwart_load %>%
+#   rename(lakeName=lake)%>%
+#   filter(doy >= 121 & doy <= 274) %>%
+#   mutate(DOC_dailyFlux_g=)
+#   group_by(lakeName) %>%
   
 
 
