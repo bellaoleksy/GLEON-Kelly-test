@@ -23,7 +23,8 @@ knitr::opts_chunk$set(out.width = '50%',fig.height=10)
 source(here("r_code/scripts/librariesAndFunctions.R"))
 
 #Read in metadata google sheet
-metadata<-read_sheet("https://docs..google.com/spreadsheets/d/1is87WT3n_TU76pTyiis3Os08JJiSmWc2G6K4bthJhU8/edit#gid=952562522") 
+# metadata<-read_sheet("https://docs..google.com/spreadsheets/d/1is87WT3n_TU76pTyiis3Os08JJiSmWc2G6K4bthJhU8/edit#gid=952562522") 
+metadata<-read_csv(here("data/lakeMetadata_20221222.csv")) #time to switch to a static file
 
 ```
 
@@ -128,7 +129,6 @@ length(unique(bella_metab_extendedSummer$lakeName))
 
 source(here("r_code/scripts/dataPullLoads.R")) #Added on 2021-04-26; Erken added 2021-12-08
 
-# source(knitr::purl(here("r_code/003_LoadEstimates.Rmd"), quiet=TRUE))
 
 #Declutter Global Environment
 rm(list = ls()[grep("mueggelsee", ls())])
@@ -144,21 +144,6 @@ rm(list = ls()[grep("acton", ls())])
 rm(dontuse,  cur)
 # rm(load_estimates_huisman_C, load_estimates_huisman_P)
 
-
-# #I'm pretty sure all I want here are the TOTALS-- see Rmd 003 for details.
-# measured_loads_kg_metab<-measured_loads_kg %>%
-#   select(lakeName, contains("total"), contains("kgday"),dataset) %>%
-#   select(-TN_load_kg_total, -TN_load_kgday_mean) %>%
-#   left_join(.,bella_metab_summary %>%
-#                   select(lakeName, n, meanGPP, medianGPP,
-#                          meanzMix, medianzMix),
-#              by="lakeName")
-# 
-# modelled_loads_kg_wide<-modelled_loads_kg %>%
-#   # pivot_wider( names_from="name", values_from="value")%>%
-#   select(lakeName, TP_load_kg, DOC_load_kg, dataset) %>%
-#   rename(DOC_load_kg_total=DOC_load_kg,
-#          TP_load_kg_total=TP_load_kg)
 
 #All of the MEASURED inflows
 glimpse(inflow_conc_summary)
