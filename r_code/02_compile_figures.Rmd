@@ -395,26 +395,35 @@ ggsave(here("figures/modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600,
 
 Create the skeleton for an eventual figure that shows the updated parameters and ranges
 ```{r}
+lit_params <- read.csv("~/Google Drive/My Drive/Collaborations/(1) Kelly Model Test/Data/Data repository/ParameterEstimatesLiterature.csv") %>%
+  select(-description, -sources) %>%
+  mutate(set="kelly") %>% #call this kelly for now so we have the kelly values map onto the literature range
+         # value=(min+max)/2) %>%
+  rename(min_lit=min,
+         max_lit=max)
+  # pivot_longer(2:3)
+
 
 #First calculate the 95% confidence intervals from the Metroplis "wide range"
 gridSearchVals<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_wideRange_longCRCrun.csv"),
                  stringsAsFactors = FALSE) 
 
-#Quick ftns for getting 5th and 95th quantiles
-quant_5 <- function(x)  {
-  quantile(x, probs = 0.05)
+#Quick ftns for getting 10th and 90th quantiles.
+#Tried 5 and 95th but there are some extreme outliers that made the plots look weird
+quant_10 <- function(x)  {
+  quantile(x, probs = 0.10)
 }
 
-quant_95 <- function(x)  {
-  quantile(x, probs = 0.95)
+quant_90 <- function(x)  {
+  quantile(x, probs = 0.90)
 }
 
 
 
-#Summarize 5th and 95th quantile for each parameter
+#Summarize 10th and 90th quantile for each parameter
 gridSearchQuantiles <-
   gridSearchVals %>%
-  summarise_all(list(quant_95=~quant_95(.), quant_5=~quant_5(.))) %>%
+  summarise_all(list(quant_90=~quant_90(.), quant_10=~quant_10(.))) %>%
   pivot_longer(cols=everything(),
                names_prefix = c("_quant_95","_quant_5"),
                names_sep = "_quant_",
@@ -422,40 +431,70 @@ gridSearchQuantiles <-
   pivot_wider(id_cols=parameter,
               names_from=quantile,
               values_from=value) %>%
-  rename(quant_95=`95`,
-         quant_5=`5`)
+  rename(quant_90=`90`,
+         quant_10=`10`) %>%
+  mutate(quant_90=exp(quant_90), #exponentiate since values were on log scale
+         quant_10=exp(quant_10))
 
 params<-read.csv(here("data/preliminaryMetropolisResults/kellymodel_parametersets4bella.csv"),
                  stringsAsFactors = FALSE) %>%
   rename(set=X)
 
 #Grab just the maximum log likelihood from the 'wide range' Metropolis run
-paramSetWide <- params %>%
+paramSetLong <- params %>%
+  # filter(set=="max log likelihood wide") %>%
+  # select(-set) %>%
+  pivot_longer(pA:rec, names_to="parameter", values_to="value") 
+
+kellySet <- paramSetLong %>%
+  filter(set=="kelly")
+
+maxLikelihoodSet <- paramSetLong %>%
   filter(set=="max log likelihood wide") %>%
-  select(-set) %>%
-  pivot_longer(cols=everything(), names_to="parameter", values_to="max_likelihood")
+  rename(max_likelihood=value) %>%
+  mutate(set="optim")
+  # mutate(max_likelihood=exp(max_likelihood)) # exponentiate since values were on log-scale
+
 
 #Join with the 5th and 95th quantile dataframe
-optim_params <- full_join(gridSearchQuantiles,paramSetWide)
+optim_params <- full_join(gridSearchQuantiles,maxLikelihoodSet)
 
-# Test plot
+# Parameter comparison plots (optim vs. kelly + literature range)
 optim_params %>%
   pivot_longer(cols=max_likelihood, names_to="name", values_to="value") %>%
-  ggplot(aes(x=name, y=value, group=name, color=name)) + 
-  geom_line()+
-  geom_pointrange(aes(ymin=quant_5, ymax=quant_95)) +
-  facet_wrap(~parameter, scales="free")
+  select(-name) %>%
+  bind_rows(., kellySet) %>%
+  left_join(., lit_params) %>%
+  ggplot(aes(x=set, y=value, group=set, color=set)) + 
+  geom_point()+
+  geom_errorbar(aes(ymin=min_lit, ymax=max_lit), width=.2,
+                 position=position_dodge(.9)) +
+  # geom_pointrange(aes(ymin=min_lit, ymax=max_lit)) +
+  geom_errorbar(aes(ymin=quant_10, ymax=quant_90), width=.2,
+                 position=position_dodge(.9)) +
+  scale_color_manual(values=c("black","purple"))+
+  facet_wrap(~parameter, scales="free", ncol=5) +
+  theme_few()+
+  theme(legend.position="none")
+ggsave(here("figures/point_plots_kelly_optim_lit_parameter_ranges.png"), dpi=600, width=7,height=4.5, units="in")
+
 
 #Histograms of all the parameters
 gridSearchVals %>%
-  pivot_longer(cols=everything(), names_to="parameter") %>%
+  pivot_longer(cols=everything(), names_to = "parameter", values_to = "value") %>%
   ggplot(aes(x=exp(value)))+
-  geom_histogram()+
-  geom_vline(aes(xintercept=max_likelihood, group=parameter), optim_params)+
-  facet_wrap(~parameter, scales="free")
+  geom_histogram(bins=50)+
+  geom_vline(aes(xintercept=max_likelihood, group=parameter), optim_params, color="maroon")+
+  facet_wrap(~parameter, scales="free", ncol=5) +
+  theme_few()+
+  labs(title="Histograms of wide-range parameter set",
+       subtitle="Red line indicates maximum log likelihood values")+
+  theme(axis.title.x=element_blank())
+ggsave(here("figures/histograms_parameter_maxlogliklihood.png"), dpi=600, width=14,height=8, units="in")
 
 
-# 
+#
+
 # 
 # params<-data.frame(c(kDOC=0.42,kA=0.00022,lA=0.1,pA=1.2,hA=55,mA=2,decay=0.001,cA=0.015,v=0.1,rec=0.95))%>%
 #   rownames_to_column()
