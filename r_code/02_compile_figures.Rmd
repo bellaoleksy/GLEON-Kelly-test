@@ -317,6 +317,184 @@ master_df %>%
 ```
 
 #Potential figures
+
+### Figure 2. Pred vs Obs params for 18 calibration lakes
+
+```{r}
+
+predVals<-read.csv(here("data/preliminaryMetropolisResults/ExtendedRangeParameter_outputWobservedloads.csv")) 
+obsVals<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_wphyto4bella.csv")) 
+compareVals<-left_join(predVals,obsVals %>% select(lakeName, TP, DOC, meanzMix, medianGPP, meanGPP))
+
+A <- compareVals %>%
+  ggplot(aes(y=TPHat, x=TP))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_y_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Modeled lake TP (mg m'^-3,')')))+
+  scale_x_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Mean lake TP (mg m'^-3,')')))
+
+
+B  <- compareVals %>%
+  ggplot(aes(y=CHat, x=DOC))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_y_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Modeled lake DOC (g m'^-3,')')))+
+  scale_x_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Mean lake DOC (g m'^-3,')')))
+
+C  <- compareVals %>%
+  ggplot(aes(y=zMixHat, x=meanzMix))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_y_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Modeled z'[mix],' (m)')))+
+  scale_x_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Mean z'[mix],' (m)')))
+
+D  <-
+  compareVals %>%
+  ggplot(aes(y=GPPHat, x=meanGPP))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_y_continuous(trans = log2_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')))+
+  scale_x_continuous(trans = log2_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)),
+    name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')))
+
+(A+B)/(C+D) + plot_annotation(tag_levels = 'A')
+
+ggsave(here("figures/modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600, width=8,height=8, units="in")
+
+
+```
+
+### Figure 4. Parameters
+
+Create the skeleton for an eventual figure that shows the updated parameters and ranges
+```{r}
+
+#First calculate the 95% confidence intervals from the Metroplis "wide range"
+gridSearchVals<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_wideRange_longCRCrun.csv"),
+                 stringsAsFactors = FALSE) 
+
+#Quick ftns for getting 5th and 95th quantiles
+quant_5 <- function(x)  {
+  quantile(x, probs = 0.05)
+}
+
+quant_95 <- function(x)  {
+  quantile(x, probs = 0.95)
+}
+
+
+
+#Summarize 5th and 95th quantile for each parameter
+gridSearchQuantiles <-
+  gridSearchVals %>%
+  summarise_all(list(quant_95=~quant_95(.), quant_5=~quant_5(.))) %>%
+  pivot_longer(cols=everything(),
+               names_prefix = c("_quant_95","_quant_5"),
+               names_sep = "_quant_",
+               names_to = c("parameter","quantile")) %>% 
+  pivot_wider(id_cols=parameter,
+              names_from=quantile,
+              values_from=value) %>%
+  rename(quant_95=`95`,
+         quant_5=`5`)
+
+params<-read.csv(here("data/preliminaryMetropolisResults/kellymodel_parametersets4bella.csv"),
+                 stringsAsFactors = FALSE) %>%
+  rename(set=X)
+
+#Grab just the maximum log likelihood from the 'wide range' Metropolis run
+paramSetWide <- params %>%
+  filter(set=="max log likelihood wide") %>%
+  select(-set) %>%
+  pivot_longer(cols=everything(), names_to="parameter", values_to="max_likelihood")
+
+#Join with the 5th and 95th quantile dataframe
+optim_params <- full_join(gridSearchQuantiles,paramSetWide)
+
+# Test plot
+optim_params %>%
+  pivot_longer(cols=max_likelihood, names_to="name", values_to="value") %>%
+  ggplot(aes(x=name, y=value, group=name, color=name)) + 
+  geom_line()+
+  geom_pointrange(aes(ymin=quant_5, ymax=quant_95)) +
+  facet_wrap(~parameter, scales="free")
+
+#Histograms of all the parameters
+gridSearchVals %>%
+  pivot_longer(cols=everything(), names_to="parameter") %>%
+  ggplot(aes(x=exp(value)))+
+  geom_histogram()+
+  geom_vline(aes(xintercept=max_likelihood, group=parameter), optim_params)+
+  facet_wrap(~parameter, scales="free")
+
+
+# 
+# 
+# params<-data.frame(c(kDOC=0.42,kA=0.00022,lA=0.1,pA=1.2,hA=55,mA=2,decay=0.001,cA=0.015,v=0.1,rec=0.95))%>%
+#   rownames_to_column()
+# colnames(params) <- c('parameter','value')
+# params$cat <- "optim"
+# 
+# lit_params <- read.csv("~/Google Drive/My Drive/Collaborations/(1) Kelly Model Test/Data/Data repository/ParameterEstimatesLiterature.csv") %>%
+#   select(-description, -sources) %>%
+#   mutate(cat="range") %>%
+#   pivot_longer(2:3)
+# 
+# table <- full_join(params, lit_params)
+# 
+# table %>%
+#   ggplot(aes(x=cat, y=value, fill=cat, shape=cat)) +
+#   geom_point(size=2.5)+
+#   facet_wrap(~parameter, scales="free",nrow=2)+
+#   theme_few()+
+#   theme(legend.position="none", 
+#         axis.title.x=element_blank())+
+#   scale_fill_manual(values=c("red","black"))+
+#   scale_shape_manual(values=c(21,22)) +
+#   geom_line(aes(group=cat), linetype=1)
+
+params %>%
+  pivot_longer(-1) %>%
+  ggplot(aes(x=set, y=value, fill=set, shape=set)) +
+  geom_point(size=2.5)+
+  facet_wrap(~name, scales="free",nrow=2)+
+  theme_few()+
+  theme(legend.position="none", 
+        axis.title.x=element_blank())+
+  scale_fill_manual(values=c("red","black","purple"))+
+  scale_shape_manual(values=c(21,22,25)) 
+  # geom_line(aes(group=cat), linetype=1)
+
+```
+
+
 ### Table 1 - lake metadata
 ```{r}
 
@@ -407,493 +585,6 @@ summary_table_export<-regulartable(summary_table_export) %>%
 save_as_docx(summary_table_export, pr_section = sect_properties,
              path = 'results/draft MS figs/tables/Table1_testing.docx')
 
-
-```
-
-
-### Fig1- global map & distributions
-```{r}
-
-
-metadata$inflows_YN <- factor(metadata$inflows_YN, levels = c("yes", "no"), 
-                  labels = c("Lakes with surface inflows", "Lakes without surface inflows"))
-
-length(unique(metadata$Country))
-
-GPP_distribution<-bella_metab_summary %>% 
-  left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  # mutate(inflows_YN= factor(inflows_YN,
-  #                           levels=c("yes","no")))%>%
-  # ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=meanGPP, fill=inflows_YN))+
-  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=GPP50, label=lakeName))+
-  geom_point(shape=21,size=3)+
-  # geom_point(aes(y=GPP50, x=lakeName))+
-  geom_boxplot(aes(ymin = GPP5,
-                   lower = GPP25,
-                   middle = GPP50,
-                   upper = GPP75,
-                   ymax = GPP95),
-               stat='identity')+
-  ylab(expression(paste('GPP (mg C m'^-2,' day'^-1,')')))+
-  # facet_wrap(.~inflows_YN, scales="free")+
-  # theme_pubr(base_size=18)+
-  theme_few()+
-  # scale_fill_manual(values=c("#52b788","#FFFFFF"))+
-  theme(
-        legend.position="none",
-        axis.title.y=element_text(size=24),
-        axis.text.y=element_text(size=24),
-        axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())+
-    scale_y_log10()+
-  geom_text_repel(
-    # force_pull   = 0, # do not pull toward data points
-    # nudge_y      = 0.05,
-    # direction    = "x",
-    # # angle        = 45,
-    # hjust        = 1,
-    # segment.size = 0.2,
-    # max.iter = 1e4,
-    # max.time = 1,
-    max.overlaps = 15,
-    size        = 8,
-    box.padding = 2
-  ) 
-    # geom_label_repel() 
-GPP_distribution
-
-ggsave(here("figures/GLEON/GPP_dist.png"), width=11, height=8,units="in", dpi=600)
-
-world <- ne_countries(scale = "medium", returnclass = "sf")
-library(maps)
-world1 <- sf::st_as_sf(map('world', plot = FALSE, fill = TRUE))
-
-
-# generate world map
-GLEON_global_map_alt<-ggplot(data = world) +
-  geom_sf() +
-  # coord_sf(xlim= c(-120,NA), ylim = c(-50, NA)) +
-  labs( x = "Longitude", y = "Latitude") +
-  # ggtitle("Global distribution of lakes for Kelly model test ")+
-  geom_jitter(data=master_df %>%
-              left_join(., metadata %>%
-                    select(lakeName, inflows_YN,`Longitude (decimal degrees)`,
-                           `Latitude (decimal degrees)`), by="lakeName") ,
-             aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`,
-                 fill=inflows_YN),
-             shape=21, color="black", size=2, fill="#ffba08")+
-    # scale_fill_manual(values=c("#52b788","#FFFFFF"))+
-  theme_pubr(base_size=18)+
-        theme(
-        axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.background = element_rect(fill="#98dbfa"),
-        panel.background = element_rect(fill="#98dbfa")
-      )
-GLEON_global_map_alt
-  # ggsave(here("figures/SIL/global_map.png"), width=10, height=9,units="in", dpi=600)
-
-
-#Morphometry density plots or histograms
-
-
-#density plot
-my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
-                             zMean="log[10]~Mean~depth~(m)", V_m3="log[10]~Volume~(m^3)"),
-                           default = label_parsed)
-
-density_plot<-master_df %>%
-  select(HRT_days, LSA_km2, zMean, V_m3) %>%
-  pivot_longer(1:4)%>%
-  # mutate(name= factor(name, labels=c(expression('hi'[5]*'there'[6]^8*'you'[2]),
-  #                                    "beta",
-  #                                    "gamma",
-  #                                    "poop")))%>%
-  ggplot()+
-  geom_density(aes(x = log10(value), fill=name)) +
-  geom_rug(aes(x = log10(value), y = 0), sides="b")+
-  facet_wrap(~name, nrow=2, scales="free",
-             labeller=my_labeller, strip.position="bottom")+
-  scale_fill_manual(values=c("#5f0f40","#9a031e","#fb8b24","#e36414"))+
-  # theme_minimal()+
-  theme_pubr(base_size = 18)+
-  theme(legend.position="none",
-        axis.title.x=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        # strip.text = element_text(size=12),
-        # axis.text.y= element_text(size=12),
-        )+
-  ylab("Density")
- density_plot
- 
- ##ASSEMBLE
- top<-(GLEON_global_map_alt | density_plot )
- Fig1<-((GLEON_global_map_alt | density_plot ) / GPP_distribution ) +
-   plot_layout(heights = c(1, 1.8))+
-   plot_annotation(tag_levels = 'A')
-  Fig1
-  
-  ggsave(here("results/draft MS figs/studyMapAndDistributions.png"), width=10, height=9,units="in", dpi=600)
-
-```
-
-#### SIL maps & violin plots
-```{r}
-
-north_america <- ne_countries(continent = "north america",scale = "medium", returnclass = "sf")
-
-GLEON_NA<-ggplot(data = north_america) +
-  geom_sf() +
-  coord_sf(xlim= c(-125,-60), ylim = c(25, 48)) +
-  labs( x = "Longitude", y = "Latitude") +
-  # geom_sf_label(aes(label = continent))+
-  geom_jitter(data=master_df %>%
-              left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-                           `Latitude (decimal degrees)`), by="lakeName") %>%
-                filter(Country %in% c("USA","Canada")),
-             aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-
-  theme_pubr(base_size=18)+
-        theme(
-        axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.background = element_rect(fill="#FFFFFF"),
-        panel.background = element_rect(fill="#FFFFFF")
-      )+
-      ggspatial::annotation_scale(
-    location = "br",
-    bar_cols = c("grey60", "white")
-  ) +
-  ggspatial::annotation_north_arrow(
-    location = "br", which_north = "true",
-    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
-    style = ggspatial::north_arrow_nautical(
-      fill = c("grey40", "white"),
-      line_col = "grey20"
-    )
-  )
-GLEON_NA
-  ggsave(here("figures/CaryMeeting/north_american_sites.png"), width=10, height=9,units="in", dpi=600)
-
-  
- europe <- ne_countries(continent = "europe",scale = "medium", returnclass = "sf")
- 
-  GLEON_EURO<-ggplot(data = europe) +
-  geom_sf() +
-  coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
-  labs( x = "Longitude", y = "Latitude") +
-  # geom_sf_label(aes(label = continent))+
-  geom_jitter(data=master_df %>%
-              left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-                           `Latitude (decimal degrees)`), by="lakeName") %>%
-                filter(!Country %in% c("USA","Canada","New Zealand","Taiwan","China")),
-             aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-
-  theme_pubr(base_size=18)+
-        theme(
-        axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.background = element_rect(fill="#FFFFFF"),
-        panel.background = element_rect(fill="#FFFFFF")
-      )+
-      ggspatial::annotation_scale(
-    location = "tl",
-    bar_cols = c("grey60", "white")
-  ) +
-  ggspatial::annotation_north_arrow(
-    location = "tl", which_north = "true",
-    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
-    style = ggspatial::north_arrow_nautical(
-      fill = c("grey40", "white"),
-      line_col = "grey20"
-    )
-  )
-GLEON_EURO
-  ggsave(here("figures/CaryMeeting/european_sites.png"), width=10, height=9,units="in", dpi=600)
-
-
-
-world <- ne_countries(scale = "medium", returnclass = "sf")
-library(spData)
-data("us_states", package = "spData")
-# us_states_2163 = st_transform(us_states, crs = 2163)
-us_states_bb = st_as_sfc(st_bbox(us_states))
-
-data("world", package = "spData")
-europe <- world %>% filter(continent %in% c("Europe")) %>% filter(name_long %in% metadata$Country)
-europe_bb = st_as_sfc(st_bbox(europe))
-NZ <- world %>% filter(name_long=="New Zealand")
-NZ_bb = st_as_sfc(st_bbox(NZ))
-asia_subset <- world %>% filter(name_long %in% c("China","Taiwan"))
-asia_subset_bb = st_as_sfc(st_bbox(asia_subset))
-
-
-# generate world map
-GLEON_global_map_alt<-ggplot(data = world) +
-  geom_sf() +
-  geom_sf(data = us_states_bb, fill = NA, color = "black", size = 1) +
-  geom_sf(data = europe_bb, fill = NA, color = "black", size = 1) +
-    geom_sf(data = NZ_bb, fill = NA, color = "black", size = 1) +
-  # coord_sf(xlim= c(-120,NA), ylim = c(-50, NA)) +
-  labs( x = "Longitude", y = "Latitude") +
-  # ggtitle("Global distribution of lakes for Kelly model test ")+
-  geom_jitter(data=master_df %>%
-              left_join(., metadata %>%
-                    select(lakeName, inflows_YN,`Longitude (decimal degrees)`,
-                           `Latitude (decimal degrees)`), by="lakeName") ,
-             aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`,
-                 fill=inflows_YN),
-             shape=21, color="black", size=2, fill="#ffba08")+
-    # scale_fill_manual(values=c("#52b788","#FFFFFF"))+
-  theme_pubr(base_size=18)+
-        theme(
-        axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.background = element_rect(fill="#FFFFFF"),
-        panel.background = element_rect(fill="#FFFFFF")
-      )
-GLEON_global_map_alt
-ggsave(here("figures/CaryMeeting/GlobalMap.png"), width=12, height=4,units="in", dpi=600)
-
-  GLEON_NZ<-ggplot(data = NZ) +
-  geom_sf() +
-  # coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
-  labs( x = "Longitude", y = "Latitude") +
-  # geom_sf_label(aes(label = continent))+
-  geom_jitter(data=master_df %>%
-              left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-                           `Latitude (decimal degrees)`), by="lakeName") %>%
-                filter(Country %in% c("New Zealand")),
-             aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-
-  theme_pubr(base_size=18)+
-        theme(
-        axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.background = element_rect(fill="#FFFFFF"),
-        panel.background = element_rect(fill="#FFFFFF")
-      )+
-      ggspatial::annotation_scale(
-    location = "tl",
-    bar_cols = c("grey60", "white")
-  ) +
-  ggspatial::annotation_north_arrow(
-    location = "tl", which_north = "true",
-    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
-    style = ggspatial::north_arrow_nautical(
-      fill = c("grey40", "white"),
-      line_col = "grey20"
-    )
-  )
-GLEON_NZ
-ggsave(here("figures/CaryMeeting/NZMap.png"), width=4, height=4,units="in", dpi=600)
-
-  GLEON_ASIA<-ggplot(data = asia_subset) +
-  geom_sf() +
-  # coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
-  labs( x = "Longitude", y = "Latitude") +
-  # geom_sf_label(aes(label = continent))+
-  geom_jitter(data=master_df %>%
-              left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-                           `Latitude (decimal degrees)`), by="lakeName") %>%
-                filter(Country %in% c("China","Taiwan")),
-             aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-
-  theme_pubr(base_size=18)+
-        theme(
-        axis.line = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.background = element_rect(fill="#FFFFFF"),
-        panel.background = element_rect(fill="#FFFFFF")
-      )+
-      ggspatial::annotation_scale(
-    location = "tl",
-    bar_cols = c("grey60", "white")
-  ) +
-  ggspatial::annotation_north_arrow(
-    location = "tl", which_north = "true",
-    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
-    style = ggspatial::north_arrow_nautical(
-      fill = c("grey40", "white"),
-      line_col = "grey20"
-    )
-  )
-GLEON_ASIA
-ggsave(here("figures/CaryMeeting/AsiaMap.png"), width=4, height=4,units="in", dpi=600)
-
-bella_metab_summary %>% 
-  left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=medianGPP))+
-  geom_boxplot(aes(ymin = GPP5,
-                   lower = GPP25,
-                   middle = GPP50,
-                   upper = GPP75,
-                   ymax = GPP95),
-               stat='identity')+
-  ylab(expression(paste('GPP (mg C m'^-2,' day'^-1,')')))+
-  theme_pubr(base_size=14)+
-  theme(
-        legend.position="none",
-        axis.title.x=element_blank(),
-        axis.text.x=element_text(angle = 45, hjust = 1, size=12))+
-    scale_y_log10()
-# ggsave(here("figures/SIL/GPP_boxplots.png"), width=12, height=4,units="in", dpi=600)
-
-
-
-bella_metab_extendedSummer_withMetaData %>%
-  filter(GPP_mgCm2>1) %>%
-  group_by(lakeName) %>%
-  arrange(desc(GPP_mgCm2)) %>%
-  slice(1:20) %>%
-  inner_join(master_df %>% select(meanGPP, lakeName)) %>%
-  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=log10(GPP_mgCm2)))+
-  geom_violin()+
-  ylab(expression(paste('GPP (mg C m'^-2,' day'^-1,')')))+
-  theme_pubr(base_size=14)+
-  theme(
-        legend.position="none",
-        axis.title.x=element_blank(),
-        axis.text.x=element_text(angle = 45, hjust = 1, size=12))+
-    scale_y_log10()
-
-
-#density plot
-my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", SA_ha="log[10]~Surface~Area~(ha)",
-                             zMean="log[10]~Mean~depth~(m)", V_m3="log[10]~Volume~(m^3)"),
-                           default = label_parsed)
-
-density_plot<-master_df %>%
-  select(HRT_days, SA_ha, zMean, V_m3) %>%
-  pivot_longer(1:4)%>%
-  # mutate(name= factor(name, labels=c(expression('hi'[5]*'there'[6]^8*'you'[2]),
-  #                                    "beta",
-  #                                    "gamma",
-  #                                    "poop")))%>%
-  ggplot()+
-  geom_density(aes(x = log10(value)),fill="#5E813F") +
-  geom_rug(aes(x = log10(value), y = 0), sides="b")+
-  facet_wrap(~name, nrow=1, scales="free",
-             labeller=my_labeller, strip.position="bottom")+
-  # geom_vline(data=master_df %>%
-  #              select(HRT_days, SA_ha, zMean, V_m3) %>%
-  #              pivot_longer(1:4) %>% group_by(name) %>% 
-  #              summarise(value=median(value, na.rm=TRUE))),
-  # aes(xintercept=value,
-  #           color="blue", linetype="dashed", size=1)+
-  theme_pubr(base_size = 18)+
-  theme(legend.position="none",
-        axis.title.x=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        # strip.text = element_text(size=12),
-        # axis.text.y= element_text(size=12),
-        )+
-  ylab("Density")
-
-
- density_plot
- ggsave(here("figures/SIL/morphometry_distributions.png"), width=14, height=4,units="in", dpi=600)
-
- 
- 
-my_labeller_x <- as_labeller(c(HRT="log[10]~(days)", `Surface area`="log[10]~(ha)",
-                             `Mean depth`="log[10]~(m)", Volume="log[10]~(m^3)"),
-                           default = label_parsed)
-
- master_df %>%
-  select(HRT_days, SA_ha, zMean, V_m3) %>%
-  pivot_longer(1:4) %>%
-  mutate(name=factor(name,
-                     levels=c("HRT_days","SA_ha","V_m3","zMean"),
-                     labels=c("HRT","Surface area","Volume","Mean depth"))) %>%
-  ggplot(aes(x=log10(value), y=name)) +
-  stat_density_ridges(quantile_lines = TRUE, quantiles = 2, fill="grey80") +
-  facet_wrap(~name, nrow=4, scales="free",
-             labeller=my_labeller_x, strip.position="bottom")+
-  geom_text(data=master_df %>%
-  select(HRT_days, SA_ha, zMean, V_m3) %>%
-  pivot_longer(1:4) %>%
-  mutate(name=factor(name,
-                     levels=c("HRT_days","SA_ha","V_m3","zMean"),
-                     labels=c("HRT","Surface area","Volume","Mean depth"))) %>%
-    group_by(name) %>% 
-              summarise(value=median(value)),
-            aes(label=sprintf("%1.1f", round(value,0))), 
-            position=position_nudge(y=-0.1), colour="red", size=3.5)+
-  geom_rug(aes(x = log10(value), y = 0), sides="b")+
-  theme_pubr(base_size = 18)+
-  theme(legend.position="none",
-        axis.title.y=element_blank(),
-        # axis.text.y=element_blank(),
-        axis.title.x=element_blank(),
-        axis.ticks.y=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        # strip.text = element_text(size=12),
-        # axis.text.y= element_text(size=12),
-        )
- ggsave(here("figures/SIL/morphometry_distributions.png"), width=4, height=10,units="in", dpi=600)
 
 ```
 
@@ -1978,103 +1669,498 @@ ggsave(here("results/draft MS figs/Fig5.predVSmeasuredGPP-DOC-TP-zMix.png"), wid
 
 ```
 
-###** Figure 5 - Obs vs pred a different way
-```{r}
-##To run this we are going to need all the functions in scripts/paramOptim/wrapper.R 
-
-d2<-master_df%>%
-  select(lakeName, medianGPP, meanGPP, DOC_load_kgday_mean,meanzMix, zMean, zMax,TP_load_kgday_mean,
-         SA_ha, HRT_days,DOC_mgL, TP_ugL, TP_mgm3, DOC_gm3, V_m3) %>% #exclude zMax for now bc lots of missing values
-    left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  mutate(CP=DOC_load_kgday_mean/TP_load_kgday_mean,
-         SA=SA_ha/100) %>% 
-  rename(DOC=DOC_mgL, #mg/L=g/m3, in-lake DOC concentrations
-         TP=TP_ugL, #ug/L=mg/m3, in-lake TP concentrations
-         Pin=TP_mgm3, #ug/L=mg/m3, estimated TP concentration of inflow
-         DOCin=DOC_gm3) %>% #mg/L=g/m3, estimated DOC concentration of inflow
-  mutate(TP = replace(TP, lakeName=="Almberga", 5), #assumption, no TP data provided
-         TP = replace(TP, lakeName=="P1", 35), #SRP, not TP
-         TP = replace(TP, lakeName=="P8", 30),#SRP, not TP
-         TP = replace(TP, lakeName=="Suggs", 149),  #TDP, not TP
-         TP = replace(TP, lakeName=="LittleRock", 23.8))%>% #orthoP, not TP
-  mutate(Pin = replace(Pin, lakeName=="TroutBog", 29), #value from 2021-05-03 model run
-         Pin = replace(Pin, lakeName=="LittleRock", 100), #value from 2021-05-03 model run
-         Pin = replace(Pin, lakeName=="Hummingbird", 22),
-         Pin = replace(Pin, lakeName=="Taihu", 1000))%>% #value from 2021-05-03 model run
-  drop_na() %>%
-  mutate(Qin=V_m3/HRT_days) %>%
-  rownames_to_column()
-
-#Add column for average incident light
-d2$I0 <- 1000
-
-par <- log(c(kDOC=0.42,kA=0.00022,lA=0.1,pA=1.2,hA=55,mA=2,decay=0.001,cA=0.015,v=0.1,rec=0.95))
-
-
-#Calculate the fits
-fits <- kellyPredix(par,d2)
-fits <- data.frame(fits) %>%
-  rownames_to_column()
-
-
-
-left_join(d2, fits, by="rowname") %>%
-  ggplot(aes(y=GPPHat, x=medianGPP, fill=inflows_YN))+
-  geom_point(shape=21, size=3,color="black")+
-  geom_abline(slope=1, intercept=0) +
-  theme_pubr(base_size=18)+
-  scale_fill_manual(values=c("white","black"))
-
-#GPP
-plot(fits[,1]~d2$medianGPP, ylab="GPP pred", xlab="GPP obs")
-abline(0,1)
-
-#TP
-plot(fits[,2]~d2$TP, , ylab="TP pred", xlab="TP obs")
-abline(0,1)
-
-#DOC
-plot(fits[,3]~d2$DOC, , ylab="DOC pred", xlab="DOC obs")
-abline(0,1)
-
-#zMix
-plot(fits[,4]~d2$meanzMix, , ylab="zMix pred", xlab="zMix obs")
-abline(0,1)
-```
-
-### Parameters
-Create the skeleton for an eventual figure that shows the updated parameters and ranges
-```{r}
-
-params<-data.frame(c(kDOC=0.42,kA=0.00022,lA=0.1,pA=1.2,hA=55,mA=2,decay=0.001,cA=0.015,v=0.1,rec=0.95))%>%
-  rownames_to_column()
-colnames(params) <- c('parameter','value')
-params$cat <- "optim"
-
-lit_params <- read.csv("~/Google Drive/My Drive/Collaborations/(1) Kelly Model Test/Data/Data repository/ParameterEstimatesLiterature.csv") %>%
-  select(-description, -sources) %>%
-  mutate(cat="range") %>%
-  pivot_longer(2:3)
-
-table <- full_join(params, lit_params)
-
-table %>%
-  ggplot(aes(x=cat, y=value, fill=cat, shape=cat)) +
-  geom_point(size=2.5)+
-  facet_wrap(~parameter, scales="free",nrow=2)+
-  theme_few()+
-  theme(legend.position="none", 
-        axis.title.x=element_blank())+
-  scale_fill_manual(values=c("red","black"))+
-  scale_shape_manual(values=c(21,22)) +
-  geom_line(aes(group=cat), linetype=1)
-
-```
 
 ### SUPP FIGS
 
-#### Figure S1. Daily metab
+#### Figure S1. Maps
+
+```{r}
+
+
+metadata$inflows_YN <- factor(metadata$inflows_YN, levels = c("yes", "no"), 
+                  labels = c("Lakes with surface inflows", "Lakes without surface inflows"))
+
+length(unique(metadata$Country))
+
+GPP_distribution<-bella_metab_summary %>% 
+  left_join(., metadata %>%
+              select(lakeName, inflows_YN), by="lakeName") %>%
+  # mutate(inflows_YN= factor(inflows_YN,
+  #                           levels=c("yes","no")))%>%
+  # ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=meanGPP, fill=inflows_YN))+
+  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=GPP50, label=lakeName))+
+  geom_point(shape=21,size=3)+
+  # geom_point(aes(y=GPP50, x=lakeName))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ylab(expression(paste('GPP (mg C m'^-2,' day'^-1,')')))+
+  # facet_wrap(.~inflows_YN, scales="free")+
+  # theme_pubr(base_size=18)+
+  theme_few()+
+  # scale_fill_manual(values=c("#52b788","#FFFFFF"))+
+  theme(
+        legend.position="none",
+        axis.title.y=element_text(size=24),
+        axis.text.y=element_text(size=24),
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+    scale_y_log10()+
+  geom_text_repel(
+    # force_pull   = 0, # do not pull toward data points
+    # nudge_y      = 0.05,
+    # direction    = "x",
+    # # angle        = 45,
+    # hjust        = 1,
+    # segment.size = 0.2,
+    # max.iter = 1e4,
+    # max.time = 1,
+    max.overlaps = 15,
+    size        = 8,
+    box.padding = 2
+  ) 
+    # geom_label_repel() 
+GPP_distribution
+
+ggsave(here("figures/GLEON/GPP_dist.png"), width=11, height=8,units="in", dpi=600)
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+library(maps)
+world1 <- sf::st_as_sf(map('world', plot = FALSE, fill = TRUE))
+
+
+# generate world map
+GLEON_global_map_alt<-ggplot(data = world) +
+  geom_sf() +
+  # coord_sf(xlim= c(-120,NA), ylim = c(-50, NA)) +
+  labs( x = "Longitude", y = "Latitude") +
+  # ggtitle("Global distribution of lakes for Kelly model test ")+
+  geom_jitter(data=master_df %>%
+              left_join(., metadata %>%
+                    select(lakeName, inflows_YN,`Longitude (decimal degrees)`,
+                           `Latitude (decimal degrees)`), by="lakeName") ,
+             aes(x=`Longitude (decimal degrees)`,
+                 y=`Latitude (decimal degrees)`,
+                 fill=inflows_YN),
+             shape=21, color="black", size=2, fill="#ffba08")+
+    # scale_fill_manual(values=c("#52b788","#FFFFFF"))+
+  theme_pubr(base_size=18)+
+        theme(
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_rect(fill="#98dbfa"),
+        panel.background = element_rect(fill="#98dbfa")
+      )
+GLEON_global_map_alt
+  # ggsave(here("figures/SIL/global_map.png"), width=10, height=9,units="in", dpi=600)
+
+
+#Morphometry density plots or histograms
+
+
+#density plot
+my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
+                             zMean="log[10]~Mean~depth~(m)", V_m3="log[10]~Volume~(m^3)"),
+                           default = label_parsed)
+
+density_plot<-master_df %>%
+  select(HRT_days, LSA_km2, zMean, V_m3) %>%
+  pivot_longer(1:4)%>%
+  # mutate(name= factor(name, labels=c(expression('hi'[5]*'there'[6]^8*'you'[2]),
+  #                                    "beta",
+  #                                    "gamma",
+  #                                    "poop")))%>%
+  ggplot()+
+  geom_density(aes(x = log10(value), fill=name)) +
+  geom_rug(aes(x = log10(value), y = 0), sides="b")+
+  facet_wrap(~name, nrow=2, scales="free",
+             labeller=my_labeller, strip.position="bottom")+
+  scale_fill_manual(values=c("#5f0f40","#9a031e","#fb8b24","#e36414"))+
+  # theme_minimal()+
+  theme_pubr(base_size = 18)+
+  theme(legend.position="none",
+        axis.title.x=element_blank(),
+        strip.placement = "outside",
+        strip.background = element_blank(),
+        # strip.text = element_text(size=12),
+        # axis.text.y= element_text(size=12),
+        )+
+  ylab("Density")
+ density_plot
+ 
+ ##ASSEMBLE
+ top<-(GLEON_global_map_alt | density_plot )
+ Fig1<-((GLEON_global_map_alt | density_plot ) / GPP_distribution ) +
+   plot_layout(heights = c(1, 1.8))+
+   plot_annotation(tag_levels = 'A')
+  Fig1
+  
+  ggsave(here("results/draft MS figs/studyMapAndDistributions.png"), width=10, height=9,units="in", dpi=600)
+
+```
+
+##### SIL maps & violin plots
+```{r}
+
+north_america <- ne_countries(continent = "north america",scale = "medium", returnclass = "sf")
+
+GLEON_NA<-ggplot(data = north_america) +
+  geom_sf() +
+  coord_sf(xlim= c(-125,-60), ylim = c(25, 48)) +
+  labs( x = "Longitude", y = "Latitude") +
+  # geom_sf_label(aes(label = continent))+
+  geom_jitter(data=master_df %>%
+              left_join(., metadata %>%
+                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                           `Latitude (decimal degrees)`), by="lakeName") %>%
+                filter(Country %in% c("USA","Canada")),
+             aes(x=`Longitude (decimal degrees)`,
+                 y=`Latitude (decimal degrees)`),
+             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
+
+  theme_pubr(base_size=18)+
+        theme(
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_rect(fill="#FFFFFF"),
+        panel.background = element_rect(fill="#FFFFFF")
+      )+
+      ggspatial::annotation_scale(
+    location = "br",
+    bar_cols = c("grey60", "white")
+  ) +
+  ggspatial::annotation_north_arrow(
+    location = "br", which_north = "true",
+    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
+    style = ggspatial::north_arrow_nautical(
+      fill = c("grey40", "white"),
+      line_col = "grey20"
+    )
+  )
+GLEON_NA
+  ggsave(here("figures/CaryMeeting/north_american_sites.png"), width=10, height=9,units="in", dpi=600)
+
+  
+ europe <- ne_countries(continent = "europe",scale = "medium", returnclass = "sf")
+ 
+  GLEON_EURO<-ggplot(data = europe) +
+  geom_sf() +
+  coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
+  labs( x = "Longitude", y = "Latitude") +
+  # geom_sf_label(aes(label = continent))+
+  geom_jitter(data=master_df %>%
+              left_join(., metadata %>%
+                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                           `Latitude (decimal degrees)`), by="lakeName") %>%
+                filter(!Country %in% c("USA","Canada","New Zealand","Taiwan","China")),
+             aes(x=`Longitude (decimal degrees)`,
+                 y=`Latitude (decimal degrees)`),
+             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
+
+  theme_pubr(base_size=18)+
+        theme(
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_rect(fill="#FFFFFF"),
+        panel.background = element_rect(fill="#FFFFFF")
+      )+
+      ggspatial::annotation_scale(
+    location = "tl",
+    bar_cols = c("grey60", "white")
+  ) +
+  ggspatial::annotation_north_arrow(
+    location = "tl", which_north = "true",
+    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
+    style = ggspatial::north_arrow_nautical(
+      fill = c("grey40", "white"),
+      line_col = "grey20"
+    )
+  )
+GLEON_EURO
+  ggsave(here("figures/CaryMeeting/european_sites.png"), width=10, height=9,units="in", dpi=600)
+
+
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+library(spData)
+data("us_states", package = "spData")
+# us_states_2163 = st_transform(us_states, crs = 2163)
+us_states_bb = st_as_sfc(st_bbox(us_states))
+
+data("world", package = "spData")
+europe <- world %>% filter(continent %in% c("Europe")) %>% filter(name_long %in% metadata$Country)
+europe_bb = st_as_sfc(st_bbox(europe))
+NZ <- world %>% filter(name_long=="New Zealand")
+NZ_bb = st_as_sfc(st_bbox(NZ))
+asia_subset <- world %>% filter(name_long %in% c("China","Taiwan"))
+asia_subset_bb = st_as_sfc(st_bbox(asia_subset))
+
+
+# generate world map
+GLEON_global_map_alt<-ggplot(data = world) +
+  geom_sf() +
+  geom_sf(data = us_states_bb, fill = NA, color = "black", size = 1) +
+  geom_sf(data = europe_bb, fill = NA, color = "black", size = 1) +
+    geom_sf(data = NZ_bb, fill = NA, color = "black", size = 1) +
+  # coord_sf(xlim= c(-120,NA), ylim = c(-50, NA)) +
+  labs( x = "Longitude", y = "Latitude") +
+  # ggtitle("Global distribution of lakes for Kelly model test ")+
+  geom_jitter(data=master_df %>%
+              left_join(., metadata %>%
+                    select(lakeName, inflows_YN,`Longitude (decimal degrees)`,
+                           `Latitude (decimal degrees)`), by="lakeName") ,
+             aes(x=`Longitude (decimal degrees)`,
+                 y=`Latitude (decimal degrees)`,
+                 fill=inflows_YN),
+             shape=21, color="black", size=2, fill="#ffba08")+
+    # scale_fill_manual(values=c("#52b788","#FFFFFF"))+
+  theme_pubr(base_size=18)+
+        theme(
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_rect(fill="#FFFFFF"),
+        panel.background = element_rect(fill="#FFFFFF")
+      )
+GLEON_global_map_alt
+ggsave(here("figures/CaryMeeting/GlobalMap.png"), width=12, height=4,units="in", dpi=600)
+
+  GLEON_NZ<-ggplot(data = NZ) +
+  geom_sf() +
+  # coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
+  labs( x = "Longitude", y = "Latitude") +
+  # geom_sf_label(aes(label = continent))+
+  geom_jitter(data=master_df %>%
+              left_join(., metadata %>%
+                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                           `Latitude (decimal degrees)`), by="lakeName") %>%
+                filter(Country %in% c("New Zealand")),
+             aes(x=`Longitude (decimal degrees)`,
+                 y=`Latitude (decimal degrees)`),
+             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
+
+  theme_pubr(base_size=18)+
+        theme(
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_rect(fill="#FFFFFF"),
+        panel.background = element_rect(fill="#FFFFFF")
+      )+
+      ggspatial::annotation_scale(
+    location = "tl",
+    bar_cols = c("grey60", "white")
+  ) +
+  ggspatial::annotation_north_arrow(
+    location = "tl", which_north = "true",
+    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
+    style = ggspatial::north_arrow_nautical(
+      fill = c("grey40", "white"),
+      line_col = "grey20"
+    )
+  )
+GLEON_NZ
+ggsave(here("figures/CaryMeeting/NZMap.png"), width=4, height=4,units="in", dpi=600)
+
+  GLEON_ASIA<-ggplot(data = asia_subset) +
+  geom_sf() +
+  # coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
+  labs( x = "Longitude", y = "Latitude") +
+  # geom_sf_label(aes(label = continent))+
+  geom_jitter(data=master_df %>%
+              left_join(., metadata %>%
+                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                           `Latitude (decimal degrees)`), by="lakeName") %>%
+                filter(Country %in% c("China","Taiwan")),
+             aes(x=`Longitude (decimal degrees)`,
+                 y=`Latitude (decimal degrees)`),
+             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
+
+  theme_pubr(base_size=18)+
+        theme(
+        axis.line = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.background = element_rect(fill="#FFFFFF"),
+        panel.background = element_rect(fill="#FFFFFF")
+      )+
+      ggspatial::annotation_scale(
+    location = "tl",
+    bar_cols = c("grey60", "white")
+  ) +
+  ggspatial::annotation_north_arrow(
+    location = "tl", which_north = "true",
+    pad_x = unit(0.4, "in"), pad_y = unit(0.4, "in"),
+    style = ggspatial::north_arrow_nautical(
+      fill = c("grey40", "white"),
+      line_col = "grey20"
+    )
+  )
+GLEON_ASIA
+ggsave(here("figures/CaryMeeting/AsiaMap.png"), width=4, height=4,units="in", dpi=600)
+
+bella_metab_summary %>% 
+  left_join(., metadata %>%
+              select(lakeName, inflows_YN), by="lakeName") %>%
+  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=medianGPP))+
+  geom_boxplot(aes(ymin = GPP5,
+                   lower = GPP25,
+                   middle = GPP50,
+                   upper = GPP75,
+                   ymax = GPP95),
+               stat='identity')+
+  ylab(expression(paste('GPP (mg C m'^-2,' day'^-1,')')))+
+  theme_pubr(base_size=14)+
+  theme(
+        legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=12))+
+    scale_y_log10()
+# ggsave(here("figures/SIL/GPP_boxplots.png"), width=12, height=4,units="in", dpi=600)
+
+
+
+bella_metab_extendedSummer_withMetaData %>%
+  filter(GPP_mgCm2>1) %>%
+  group_by(lakeName) %>%
+  arrange(desc(GPP_mgCm2)) %>%
+  slice(1:20) %>%
+  inner_join(master_df %>% select(meanGPP, lakeName)) %>%
+  ggplot(aes(x=reorder(lakeName, meanGPP, FUN=mean), y=log10(GPP_mgCm2)))+
+  geom_violin()+
+  ylab(expression(paste('GPP (mg C m'^-2,' day'^-1,')')))+
+  theme_pubr(base_size=14)+
+  theme(
+        legend.position="none",
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(angle = 45, hjust = 1, size=12))+
+    scale_y_log10()
+
+
+#density plot
+my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", SA_ha="log[10]~Surface~Area~(ha)",
+                             zMean="log[10]~Mean~depth~(m)", V_m3="log[10]~Volume~(m^3)"),
+                           default = label_parsed)
+
+density_plot<-master_df %>%
+  select(HRT_days, SA_ha, zMean, V_m3) %>%
+  pivot_longer(1:4)%>%
+  # mutate(name= factor(name, labels=c(expression('hi'[5]*'there'[6]^8*'you'[2]),
+  #                                    "beta",
+  #                                    "gamma",
+  #                                    "poop")))%>%
+  ggplot()+
+  geom_density(aes(x = log10(value)),fill="#5E813F") +
+  geom_rug(aes(x = log10(value), y = 0), sides="b")+
+  facet_wrap(~name, nrow=1, scales="free",
+             labeller=my_labeller, strip.position="bottom")+
+  # geom_vline(data=master_df %>%
+  #              select(HRT_days, SA_ha, zMean, V_m3) %>%
+  #              pivot_longer(1:4) %>% group_by(name) %>% 
+  #              summarise(value=median(value, na.rm=TRUE))),
+  # aes(xintercept=value,
+  #           color="blue", linetype="dashed", size=1)+
+  theme_pubr(base_size = 18)+
+  theme(legend.position="none",
+        axis.title.x=element_blank(),
+        strip.placement = "outside",
+        strip.background = element_blank(),
+        # strip.text = element_text(size=12),
+        # axis.text.y= element_text(size=12),
+        )+
+  ylab("Density")
+
+
+ density_plot
+ ggsave(here("figures/SIL/morphometry_distributions.png"), width=14, height=4,units="in", dpi=600)
+
+ 
+ 
+my_labeller_x <- as_labeller(c(HRT="log[10]~(days)", `Surface area`="log[10]~(ha)",
+                             `Mean depth`="log[10]~(m)", Volume="log[10]~(m^3)"),
+                           default = label_parsed)
+
+ master_df %>%
+  select(HRT_days, SA_ha, zMean, V_m3) %>%
+  pivot_longer(1:4) %>%
+  mutate(name=factor(name,
+                     levels=c("HRT_days","SA_ha","V_m3","zMean"),
+                     labels=c("HRT","Surface area","Volume","Mean depth"))) %>%
+  ggplot(aes(x=log10(value), y=name)) +
+  stat_density_ridges(quantile_lines = TRUE, quantiles = 2, fill="grey80") +
+  facet_wrap(~name, nrow=4, scales="free",
+             labeller=my_labeller_x, strip.position="bottom")+
+  geom_text(data=master_df %>%
+  select(HRT_days, SA_ha, zMean, V_m3) %>%
+  pivot_longer(1:4) %>%
+  mutate(name=factor(name,
+                     levels=c("HRT_days","SA_ha","V_m3","zMean"),
+                     labels=c("HRT","Surface area","Volume","Mean depth"))) %>%
+    group_by(name) %>% 
+              summarise(value=median(value)),
+            aes(label=sprintf("%1.1f", round(value,0))), 
+            position=position_nudge(y=-0.1), colour="red", size=3.5)+
+  geom_rug(aes(x = log10(value), y = 0), sides="b")+
+  theme_pubr(base_size = 18)+
+  theme(legend.position="none",
+        axis.title.y=element_blank(),
+        # axis.text.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.ticks.y=element_blank(),
+        strip.placement = "outside",
+        strip.background = element_blank(),
+        # strip.text = element_text(size=12),
+        # axis.text.y= element_text(size=12),
+        )
+ ggsave(here("figures/SIL/morphometry_distributions.png"), width=4, height=10,units="in", dpi=600)
+
+```
+
+
+#### Figure S2. Daily metab
 ```{r, out.width = '100%',fig.height=15}
 bella_metab_extendedSummer_withMetaData  <- bella_metab_extendedSummer %>%
   mutate(GPP_mgCm2 = na_if(GPP_mgCm2, GPP_mgCm2<1)) %>%
@@ -2207,8 +2293,8 @@ B<-inflow_comparison %>%
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
-  labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
-       y=expression(paste('Modeled inflow DOC g m'^-3,)))
+  labs(x=expression(paste('log10 Measured inflow DOC g m'^-3,)),
+       y=expression(paste('log10 Modeled inflow DOC g m'^-3,)))
 
 # C<-inflow_comparison %>%
 #   ggplot(aes(x=log10(TP_load_kg_measured),y=log10(TP_load_kg_modelled))) +
@@ -2223,13 +2309,16 @@ D<-inflow_comparison %>%
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
-  labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
-       y=expression(paste('Modeled inflow TP mg m'^-3,)))
+  labs(x=expression(paste('log10 Measured inflow TP mg m'^-3,)),
+       y=expression(paste('log10 Modeled inflow TP mg m'^-3,)))
 
 gg_title = str_wrap("Modeled vs. measured TP and DOC loads and inflow concentrations", width=100)
  
 # (A+B)/(C+D) + plot_annotation(title = gg_title)
 B+D
+
+lm1<- lm(log10(TPinflow_modelled_mgm3)~log10(TPinflow_measured_mgm3), data=inflow_comparison)
+summary(lm1)
 
 ggsave(here("figures/modeled_vs_measured_loads_18lakes_log10.png"), dpi=600, width=8,height=5, units="in")
 
