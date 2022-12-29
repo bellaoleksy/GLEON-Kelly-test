@@ -114,13 +114,6 @@ bella_metab_summary <- bella_metab_extendedSummer %>%
          GPP95=meanGPP+qnorm(0.95)*seGPP,
          perc_missing_days=(n_NAs/153)*100)%>% # calculate percentage of missing days. If > 50%, toss those lakes out
   filter(!perc_missing_days>50)
-
-length(unique(bella_metab_extendedSummer$lakeName))
-
-
-# rm(bella_metab_withMetaData_northern_extendedSummer,bella_metab_withMetaData_southern_extendedSummer,
-#     # bella_metab_withMetaData,
-#    bella_GPP, bella_metab, bella_zMix)
 ```
 
 #### Loads
@@ -149,7 +142,7 @@ glimpse(inflow_conc_summary)
 inflow_conc_summary_metab<-inflow_conc_summary %>%
   select(lakeName, contains("DOC"), contains("TP"),dataset) %>%
   # select(-TN_load_kg_total, -TN_load_kgday_mean) %>%
-  left_join(.,bella_metab_summary %>%
+  full_join(.,bella_metab_summary %>%
                   select(lakeName, n, meanGPP, medianGPP,
                          meanGPP_vol, medianGPP_vol,
                          meanzMix, medianzMix),
@@ -201,7 +194,7 @@ modelled_loads_kg_new <- modelled_loads_kg %>%
 
 
 
-loads_master<-full_join(inflow_conc_summary_metab %>% select(-dataset),
+loads_master<-right_join(inflow_conc_summary_metab %>% select(-dataset),
                         modelled_loads_kg_new %>% select(-dataset),
                         by=c("lakeName"))
                              # "meanGPP","medianGPP",
@@ -225,7 +218,7 @@ loads_master<-full_join(inflow_conc_summary_metab %>% select(-dataset),
 glimpse(loads_master)
 
 #### MASTER DF! ###
-master_df<-left_join(bella_metab_summary %>%
+master_df<-right_join(bella_metab_summary %>%
                   select(lakeName, n, meanGPP, medianGPP,
                          meanGPP_vol, medianGPP_vol),
                 loads_master, by=c("lakeName","n","medianGPP","meanGPP",
@@ -242,18 +235,6 @@ master_df<-left_join(bella_metab_summary %>%
          TP_load_modeled=TP_mgm3_mod*Qin*(1/1000000),
          DOC_load_modeled=DOC_gm3_mod*Qin*(1/1000))
 
-
-
-#Sanity check- now how to the modeled versus measured loads compared?
-master_df %>%
-  ggplot(aes(x=log10(DOC_load_modeled), y=log10(DOC_load_measured)))+
-  geom_point()+
-  geom_abline(intercept=0, slope=1)
-
-master_df %>%
-  ggplot(aes(x=log10(TP_load_modeled), y=log10(TP_load_measured)))+
-  geom_point()+
-  geom_abline(intercept=0, slope=1)
 
 ```
 
@@ -1579,7 +1560,7 @@ my_breaks = c(0.1, 100, 1000)
 #TP inflow vs DOC inflow
   master_df %>%
   # filter(!lakeName=="Annie")%>%
-  ggplot(aes(y=(TP_mgm3), x=(DOC_gm3),
+  ggplot(aes(y=(TP_mgm3_mod), x=(DOC_gm3_mod),
              # size=LSA_sizeclass,
              fill=medianGPP))+
   geom_point(shape=21, color="black", alpha=0.9, size=3)+
