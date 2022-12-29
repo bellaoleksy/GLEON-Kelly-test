@@ -142,8 +142,6 @@ rm(list = ls()[grep("Loch", ls())])
 rm(list = ls()[grep("erken", ls())])
 rm(list = ls()[grep("acton", ls())])
 rm(dontuse,  cur)
-# rm(load_estimates_huisman_C, load_estimates_huisman_P)
-
 
 #All of the MEASURED inflows
 glimpse(inflow_conc_summary)
@@ -156,27 +154,41 @@ inflow_conc_summary_metab<-inflow_conc_summary %>%
                          meanGPP_vol, medianGPP_vol,
                          meanzMix, medianzMix),
              by="lakeName") %>%
-  rename(DOC_load_kg=DOC_load,
-         TP_load_kg=TP_load) %>%
-    mutate(DOC_load_kgday_mean=DOC_load_kg/n,
-         TP_load_kgday_mean=TP_load_kg/n)
+  rename(
+         # DOC_kg_total=DOC_load,
+         # TP_kg_total=TP_load,
+         DOC_gm3_obs=DOC_gm3,
+         TP_mgm3_obs=TP_mgm3) %>%
+  select(-c(DOC_load,TP_load)) #We will calculate loads in the same way below
+  # mutate(DOC_kg_total=DOC_kg_total/1000, #convert from g/day to kg/day
+  #        TP_kg_total=TP_kg_total/1000000, #convert from mg/day to kg/day
+  #       DOC_load_kgday_mean=DOC_kg_total/n,
+  #        TP_load_kgday_mean=TP_kg_total/n)
 
 
 #ALl of the MODELED inflows
 glimpse(modelled_loads_kg)
 
+#Rename a few columns for less confusion
+modelled_loads_kg_new <- modelled_loads_kg %>%
+    rename(DOC_gm3_mod=DOC_gm3,
+           TP_mgm3_mod=TP_mgm3,
+           TP_load_kg_mod=TP_load_kg,
+           DOC_log_kg_mod=DOC_load_kg)
 
 #Pull out only the lakes WITHOUT measurements/gauged inflows
-modelled_loads_kg_norepeat<-anti_join(modelled_loads_kg,inflow_conc_summary, by="lakeName") %>%
-  left_join(.,bella_metab_summary %>%
-                  select(lakeName, n, meanGPP, medianGPP,
-                         meanGPP_vol, medianGPP_vol,
-                         meanzMix, medianzMix),
-             by="lakeName") %>%
-  filter(!lakeName=="Rotoiti") %>%
-  mutate(DOC_load_kgday_mean=DOC_load_kg/n,
-         TP_load_kgday_mean=TP_load_kg/n) %>%
-  select(-V, -HRT_days, -Qin)
+# modelled_loads_kg_norepeat<-anti_join(modelled_loads_kg,inflow_conc_summary, by="lakeName") %>%
+#   left_join(.,bella_metab_summary %>%
+#                   select(lakeName, n, meanGPP, medianGPP,
+#                          meanGPP_vol, medianGPP_vol,
+#                          meanzMix, medianzMix),
+#              by="lakeName") %>%
+#   filter(!lakeName=="Rotoiti") %>%
+#   mutate(DOC_load_kgday_mean=DOC_load_kg/n,
+#          TP_load_kgday_mean=TP_load_kg/n) %>%
+#   select(-V, -HRT_days, -Qin) %>%
+  # rename(DOC_gm3_mod=DOC_gm3,
+  #        TP_mgm3_mod=TP_mgm3)
 
 # loads_master<-left_join(load_comparisons_wide,bella_metab_summary %>%
 #                   select(lakeName, n, meanGPP, medianGPP,
@@ -188,23 +200,27 @@ modelled_loads_kg_norepeat<-anti_join(modelled_loads_kg,inflow_conc_summary, by=
 
 
 
-loads_master<-full_join(inflow_conc_summary_metab,modelled_loads_kg_norepeat,
-                        by=c("lakeName","meanGPP","medianGPP",
-                             "meanGPP_vol", "medianGPP_vol",
-                             "DOC_load_kg","TP_load_kg",
-                             "DOC_gm3","TP_mgm3",
-                             "DOC_load_kgday_mean","TP_load_kgday_mean","n",
-                             "meanzMix","medianzMix",
-                             "dataset")) 
-  # select(-DOC_TP_massmass_total) 
-  # left_join(.,metadata %>%
-  #             select(lakeName, `Lake residence time (year)`, `Surface area (ha)`,
-  #                    `Maximum lake depth (m)`, `Volume (m3)`)) %>%
-  # rename(HRT_days=`Lake residence time (year)`,
-  #        SA_ha=`Surface area (ha)`,
-  #        zMax=`Maximum lake depth (m)`,
-  #        V_m3=`Volume (m3)`) %>%
-  # mutate(HRT_days=HRT_days*365)
+
+loads_master<-full_join(inflow_conc_summary_metab %>% select(-dataset),
+                        modelled_loads_kg_new %>% select(-dataset),
+                        by=c("lakeName"))
+                             # "meanGPP","medianGPP",
+                             # "meanGPP_vol", "medianGPP_vol",
+                             # "DOC_load_kg","TP_load_kg",
+                             # "DOC_gm3","TP_mgm3",
+                             # "DOC_load_kgday_mean","TP_load_kgday_mean","n",
+                             # "meanzMix","medianzMix",
+                             # "dataset")) 
+
+# loads_master<-full_join(inflow_conc_summary_metab,modelled_loads_kg_norepeat,
+#                         by=c("lakeName","meanGPP","medianGPP",
+#                              "meanGPP_vol", "medianGPP_vol",
+#                              # "DOC_load_kg","TP_load_kg",
+#                              # "DOC_gm3","TP_mgm3",
+#                              "DOC_load_kgday_mean","TP_load_kgday_mean","n",
+#                              "meanzMix","medianzMix",
+#                              "dataset")) 
+
 
 glimpse(loads_master)
 
@@ -213,8 +229,31 @@ master_df<-left_join(bella_metab_summary %>%
                   select(lakeName, n, meanGPP, medianGPP,
                          meanGPP_vol, medianGPP_vol),
                 loads_master, by=c("lakeName","n","medianGPP","meanGPP",
-                                   "meanGPP_vol", "medianGPP_vol"))
+                                   "meanGPP_vol", "medianGPP_vol")) %>%
+  # left_join(., metadata %>%
+  #                              select(lakeName,`Volume (m3)`, `Lake residence time (year)`), by="lakeName") %>%
+  # rename(HRT_days=`Lake residence time (year)`,
+  #        V=`Volume (m3)`) %>%
+  mutate(
+         # HRT_days=HRT_days*365,
+         # Qin=V/HRT_days,
+         TP_load_measured=TP_mgm3_obs*Qin*(1/1000000),
+         DOC_load_measured=DOC_gm3_obs*Qin*(1/1000),
+         TP_load_modeled=TP_mgm3_mod*Qin*(1/1000000),
+         DOC_load_modeled=DOC_gm3_mod*Qin*(1/1000))
 
+
+
+#Sanity check- now how to the modeled versus measured loads compared?
+master_df %>%
+  ggplot(aes(x=log10(DOC_load_modeled), y=log10(DOC_load_measured)))+
+  geom_point()+
+  geom_abline(intercept=0, slope=1)
+
+master_df %>%
+  ggplot(aes(x=log10(TP_load_modeled), y=log10(TP_load_measured)))+
+  geom_point()+
+  geom_abline(intercept=0, slope=1)
 
 ```
 
@@ -236,16 +275,20 @@ glimpse(newts_full)
                                            abs440, abs250, abs280, abs254, chla_ugL),
                       by="lakeName") %>%
     left_join(.,metadata %>%
-              select(lakeName, `Lake residence time (year)`, `Surface area (ha)`,
-                     `Maximum lake depth (m)`,`Mean lake depth (m)`,  `Volume (m3)`, `watershed area (km2)`, `Surface area (km2)`)) %>%
-  rename(HRT_days=`Lake residence time (year)`,
+              select(lakeName,  `Surface area (ha)`,
+                     `Maximum lake depth (m)`,`Mean lake depth (m)`,
+                     # `Volume (m3)`,`Lake residence time (year)`,
+                     `watershed area (km2)`, `Surface area (km2)`)) %>%
+  rename(
+         # HRT_days=`Lake residence time (year)`,
          SA_ha=`Surface area (ha)`,
          zMax=`Maximum lake depth (m)`,
          zMean=`Mean lake depth (m)`,
-         V_m3=`Volume (m3)`,
+         # V_m3=`Volume (m3)`,
          SA_km2=`Surface area (km2)`,
          WSA_km2=`watershed area (km2)`) %>%
-  mutate(HRT_days=HRT_days*365,
+  mutate(
+         # HRT_days=HRT_days*365,
          WALA=(WSA_km2-SA_km2)/(SA_km2))%>%
   distinct() #remove duplicate rows
 ```
@@ -519,16 +562,16 @@ ggsave(here("figures/histograms_parameter_maxlogliklihood.png"), dpi=600, width=
 #   scale_shape_manual(values=c(21,22)) +
 #   geom_line(aes(group=cat), linetype=1)
 
-params %>%
-  pivot_longer(-1) %>%
-  ggplot(aes(x=set, y=value, fill=set, shape=set)) +
-  geom_point(size=2.5)+
-  facet_wrap(~name, scales="free",nrow=2)+
-  theme_few()+
-  theme(legend.position="none", 
-        axis.title.x=element_blank())+
-  scale_fill_manual(values=c("red","black","purple"))+
-  scale_shape_manual(values=c(21,22,25)) 
+# params %>%
+#   pivot_longer(-1) %>%
+#   ggplot(aes(x=set, y=value, fill=set, shape=set)) +
+#   geom_point(size=2.5)+
+#   facet_wrap(~name, scales="free",nrow=2)+
+#   theme_few()+
+#   theme(legend.position="none", 
+#         axis.title.x=element_blank())+
+#   scale_fill_manual(values=c("red","black","purple"))+
+#   scale_shape_manual(values=c(21,22,25)) 
   # geom_line(aes(group=cat), linetype=1)
 
 ```
@@ -2240,47 +2283,91 @@ ggsave(here("figures/CaryMeeting/SUPP.dailyGPPincluded.png"), width=14, height=1
 ```{r, out.width = '100%',fig.height=15}
 
 
-modelled_loads_kg_comparison <- modelled_loads_kg %>%
-  rename(TPinflow_modelled_mgm3=TP_mgm3,
-         DOCinflow_modelled_gm3=DOC_gm3,
-         Qin_modelled_m3day=Qin,
-         TP_load_kg_modelled=TP_load_kg,
-         DOC_load_kg_modelled=DOC_load_kg) %>%
-  select(-dataset)
-
-inflow_conc_comparison <- inflow_conc_summary %>%
-  filter(dataset=="measured") %>%
-  rename(DOC_load_kg_measured=DOC_load,
-         TP_load_kg_measured=TP_load,
-         Qin_m3sec=Qin,
-         TPinflow_measured_mgm3=TP_mgm3,
-         DOCinflow_measured_gm3=DOC_gm3) %>%
-  mutate(Qin_m3day=Qin_m3sec*86400,
-         DOC_load_kg_measured=DOC_load_kg_measured/n_days/1000,
-         TP_load_kg_measured=TP_load_kg_measured/n_days/1000000) %>%
-  select(-Qin_m3sec,-dataset)
-         
-         
-         
-inflow_comparison <- left_join(inflow_conc_comparison,modelled_loads_kg_comparison, by=c("lakeName")) %>%
-    mutate(
-    DOCinflow_measured_gm3 = replace(DOCinflow_measured_gm3, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
-    TPinflow_measured_mgm3 = replace(TPinflow_measured_mgm3, lakeName=="EastLong", 48.9)) %>%
-  #calculate the C:P
-  mutate(DOC_TP_measured=DOCinflow_measured_gm3/TPinflow_measured_mgm3,
-         DOC_TP_modeled=DOCinflow_modelled_gm3/TPinflow_modelled_mgm3)
-
-# A<-inflow_comparison %>%
-#   ggplot(aes(x=(DOC_load_kg_measured),y=(DOC_load_kg_modelled))) +
+# modelled_loads_kg_comparison <- modelled_loads_kg %>%
+#   rename(TPinflow_modelled_mgm3=TP_mgm3,
+#          DOCinflow_modelled_gm3=DOC_gm3,
+#          Qin_modelled_m3day=Qin,
+#          TP_load_kg_modelled=TP_load_kg,
+#          DOC_load_kg_modelled=DOC_load_kg) %>%
+#   select(-dataset)
+# 
+# inflow_conc_comparison <- inflow_conc_summary %>%
+#   filter(dataset=="measured") %>%
+#   rename(DOC_load_kg_measured=DOC_load,
+#          TP_load_kg_measured=TP_load,
+#          Qin_m3sec=Qin,
+#          TPinflow_measured_mgm3=TP_mgm3,
+#          DOCinflow_measured_gm3=DOC_gm3) %>%
+#   mutate(Qin_m3day=Qin_m3sec*86400,
+#          DOC_load_kg_measured=DOC_load_kg_measured/n_days/1000,
+#          TP_load_kg_measured=TP_load_kg_measured/n_days/1000000) %>%
+#   select(-Qin_m3sec,-dataset)
+#          
+#          
+#          
+# inflow_comparison <- left_join(inflow_conc_comparison,modelled_loads_kg_comparison, by=c("lakeName")) %>%
+#     mutate(
+#     DOCinflow_measured_gm3 = replace(DOCinflow_measured_gm3, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
+#     TPinflow_measured_mgm3 = replace(TPinflow_measured_mgm3, lakeName=="EastLong", 48.9)) %>%
+#   #calculate the C:P
+#   mutate(DOC_TP_measured=DOCinflow_measured_gm3/TPinflow_measured_mgm3,
+#          DOC_TP_modeled=DOCinflow_modelled_gm3/TPinflow_modelled_mgm3)
+# 
+# # A<-inflow_comparison %>%
+# #   ggplot(aes(x=(DOC_load_kg_measured),y=(DOC_load_kg_modelled))) +
+# #   geom_point()+
+# #   geom_abline(intercept=0, slope=1)+
+# #   theme_few()+
+# #   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+# #   labs(x=" measured DOC load (kg/day)",
+# #        y=" modeled DOC load (kg/day)")
+# 
+# B<-inflow_comparison %>%
+#   ggplot(aes(x=(DOCinflow_measured_gm3),y=(DOCinflow_modelled_gm3))) +
 #   geom_point()+
 #   geom_abline(intercept=0, slope=1)+
 #   theme_few()+
-#   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-#   labs(x=" measured DOC load (kg/day)",
-#        y=" modeled DOC load (kg/day)")
+#   # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+#   labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
+#        y=expression(paste('Modeled inflow DOC g m'^-3,)))
+# 
+# 
+# # C<-inflow_comparison %>%
+# #   ggplot(aes(x=(TP_load_kg_measured),y=(TP_load_kg_modelled))) +
+# #   geom_point()+
+# #   geom_abline(intercept=0, slope=1)+
+# #   theme_few()+
+# #   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+# #   labs(x=" measured TP load (kg/day)",
+# #        y=" modeled TP load (kg/day)")
+# 
+# D<-inflow_comparison %>%
+#   ggplot(aes(x=(TPinflow_measured_mgm3),y=(TPinflow_modelled_mgm3))) +
+#   geom_point()+
+#   geom_abline(intercept=0, slope=1)+
+#   theme_few()+
+#   # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+#   labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
+#        y=expression(paste('Modeled inflow TP mg m'^-3,)))
+# 
+# 
+# gg_title = str_wrap("Modeled vs. measured TP and DOC inflow concentrations", width=100)
+#  
+# # (A+B)/(C+D) + plot_annotation(title = gg_title)
+# (B+D) 
+# # + plot_annotation(title = gg_title)
+#   
+# 
+# ggsave(here("figures/modeled_vs_measured_conc_18lakes_v1.png"), dpi=600, width=8,height=5, units="in")
 
-B<-inflow_comparison %>%
-  ggplot(aes(x=(DOCinflow_measured_gm3),y=(DOCinflow_modelled_gm3))) +
+
+#Plot using master_df dataset
+
+A<-master_df %>%
+  mutate(
+    DOC_gm3_obs = replace(DOC_gm3_obs, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
+    TP_mgm3_obs = replace(TP_mgm3_obs, lakeName=="EastLong", 48.9)) %>%
+  ggplot(aes(x=(DOC_gm3_obs),y=(DOC_gm3_mod))) +
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
@@ -2288,18 +2375,11 @@ B<-inflow_comparison %>%
   labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
        y=expression(paste('Modeled inflow DOC g m'^-3,)))
 
-
-# C<-inflow_comparison %>%
-#   ggplot(aes(x=(TP_load_kg_measured),y=(TP_load_kg_modelled))) +
-#   geom_point()+
-#   geom_abline(intercept=0, slope=1)+
-#   theme_few()+
-#   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-#   labs(x=" measured TP load (kg/day)",
-#        y=" modeled TP load (kg/day)")
-
-D<-inflow_comparison %>%
-  ggplot(aes(x=(TPinflow_measured_mgm3),y=(TPinflow_modelled_mgm3))) +
+B<-master_df %>%
+  mutate(
+    DOC_gm3_obs = replace(DOC_gm3_obs, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
+    TP_mgm3_obs = replace(TP_mgm3_obs, lakeName=="EastLong", 48.9)) %>%
+  ggplot(aes(x=(TP_mgm3_obs),y=(TP_mgm3_mod))) +
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
@@ -2307,59 +2387,52 @@ D<-inflow_comparison %>%
   labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
        y=expression(paste('Modeled inflow TP mg m'^-3,)))
 
+(A+B) 
+# + plot_annotation(title = gg_title)
+  
 
-gg_title = str_wrap("Modeled vs. measured TP and DOC inflow concentrations", width=100)
- 
-# (A+B)/(C+D) + plot_annotation(title = gg_title)
-(B+D) 
+ggsave(here("figures/modeled_vs_measured_conc_18lakes.png"), dpi=600, width=8,height=5, units="in")
+
+
+
+#Plot using master_df dataset
+
+C<-master_df %>%
+  ggplot(aes(x=(DOC_load_measured),y=(DOC_load_modeled))) +
+  geom_point()+
+  geom_abline(intercept=0, slope=1)+
+  theme_few()+
+  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+  labs(x="Measured DOC load (kg/day)",
+       y="Modeled DOC load (kg/day)")+
+  scale_y_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)))+
+  scale_x_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)))
+
+D<-master_df %>%
+  ggplot(aes(x=(TP_load_measured),y=(TP_load_modeled))) +
+  geom_point()+
+  geom_abline(intercept=0, slope=1)+
+  theme_few()+
+  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
+  labs(x="Measured DOC load (kg/day)",
+       y="Modeled DOC load (kg/day)")+
+  scale_y_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)))+
+  scale_x_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x),
+    labels = trans_format("log10", math_format(10^.x)))
+
+(C+D) 
 # + plot_annotation(title = gg_title)
   
 
 ggsave(here("figures/modeled_vs_measured_loads_18lakes.png"), dpi=600, width=8,height=5, units="in")
 
-
-#Plot it on the log scale
-# A<-inflow_comparison %>%
-#   ggplot(aes(x=log10(DOC_load_kg_measured),y=log10(DOC_load_kg_modelled))) +
-#   geom_point()+
-#   geom_abline(intercept=0, slope=1)+
-#   theme_few()+
-#   labs(x="log10 measured DOC load (kg/day)",
-#        y="log10 modeled DOC load (kg/day)")
-
-B<-inflow_comparison %>%
-  ggplot(aes(x=log10(DOCinflow_measured_gm3),y=log10(DOCinflow_modelled_gm3))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  labs(x=expression(paste('log10 Measured inflow DOC g m'^-3,)),
-       y=expression(paste('log10 Modeled inflow DOC g m'^-3,)))
-
-# C<-inflow_comparison %>%
-#   ggplot(aes(x=log10(TP_load_kg_measured),y=log10(TP_load_kg_modelled))) +
-#   geom_point()+
-#   geom_abline(intercept=0, slope=1)+
-#   theme_few()+
-#   labs(x="log10 measured TP load (kg/day)",
-#        y="log10 modeled TP load (kg/day)")
-
-D<-inflow_comparison %>%
-  ggplot(aes(x=log10(TPinflow_measured_mgm3),y=log10(TPinflow_modelled_mgm3))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  labs(x=expression(paste('log10 Measured inflow TP mg m'^-3,)),
-       y=expression(paste('log10 Modeled inflow TP mg m'^-3,)))
-
-gg_title = str_wrap("Modeled vs. measured TP and DOC loads and inflow concentrations", width=100)
- 
-# (A+B)/(C+D) + plot_annotation(title = gg_title)
-B+D
-
-lm1<- lm(log10(TPinflow_modelled_mgm3)~log10(TPinflow_measured_mgm3), data=inflow_comparison)
-summary(lm1)
-
-ggsave(here("figures/modeled_vs_measured_loads_18lakes_log10.png"), dpi=600, width=8,height=5, units="in")
 
 
 
@@ -2367,8 +2440,9 @@ ggsave(here("figures/modeled_vs_measured_loads_18lakes_log10.png"), dpi=600, wid
 gg_title = str_wrap("modeled values are from preliminary Metropolis Results (wide range)", width=40)
  
 
-E<-inflow_comparison %>%
-  ggplot(aes(x=DOC_TP_measured,y=DOC_TP_modeled)) +
+E<-master_df %>%
+  ggplot(aes(x=DOC_gm3_obs/TP_mgm3_obs,y=DOC_gm3_mod/TP_mgm3_mod)) +
+  # ggplot(aes(x=DOC_load_measured/TP_load_measured*1000,y=DOC_load_modeled/TP_load_modeled*1000)) +
   geom_point()+
   geom_abline(intercept=0, slope=1)+
   theme_few()+
@@ -2376,6 +2450,7 @@ E<-inflow_comparison %>%
   labs(x="Measured DOC:TP",
        y="Modeled DOC:TP")
 E + plot_annotation(title = gg_title)
+
 ggsave(here("figures/modeled_vs_measured_CtoP_18lakes.png"), dpi=600, width=5,height=5, units="in")
 
 ```
