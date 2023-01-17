@@ -342,6 +342,233 @@ master_df %>%
 
 #Potential figures
 
+### Figure 1 - correleations among GPP, loads, zmix, nutrients, SA, volume
+```{r}
+
+
+## First version uses OBSERVED GPP, and the only modeled data is TPin and DOCin
+my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
+                             meanzMix="log[10]~Mixed~layer~depth~(m)", V="log[10]~Volume~(~10^6~m^3)",
+                             DOC_mgL="DOC[lake]~(mg~L^1)", TP_ugL="TP[lake]~(mu~g~L^-1)",
+                             # DOC_load_modeled="Mean~daily~DOC~load~(kg)",
+                             # TP_load_modeled="Mean~daily~TP~load~(kg)",
+                             TP_mgm3_mod="TP[inflow]~(mu~g~L^-1)",
+                             DOC_gm3_mod="DOC[inflow]~(mg~L^1)",
+                             CP="DOC~to~TP~ratio[inflow]"),
+                             
+                           default = label_parsed)
+
+GPP_correlations<-master_df %>%
+  select(meanGPP, DOC_gm3_mod, TP_mgm3_mod,
+         meanzMix, TP_ugL, DOC_mgL, LSA_km2, V) %>%
+  mutate(CP=DOC_gm3_mod/(TP_mgm3_mod),
+         V=V/1000000) %>%
+  pivot_longer(-(1)) %>%
+  mutate(name=factor(name,
+                     levels=c("DOC_gm3_mod","DOC_mgL",
+                              "TP_mgm3_mod","TP_ugL",
+                              "CP","meanzMix",
+                              "LSA_km2","V")))%>%
+  ggplot(aes(x=value, y=meanGPP))+
+  geom_smooth(method="lm", se=T, color="grey50", fill="black", size=0.5, alpha=0.5)+
+  geom_point(size=3, shape=21, color="black", fill="black", alpha=0.5)+
+  facet_wrap(.~name, scales="free",ncol=2,
+             labeller=my_labeller, strip.position="bottom")+
+  scale_y_log10(expression(paste('Observed GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma, breaks_log(n = 6, base = 10))+
+  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
+  theme_few()+
+  theme(legend.position="none",
+        axis.title.x=element_blank(),
+        strip.placement = "outside",
+        strip.background = element_blank(),
+        plot.margin = margin(1,1,0.5,0.5, "cm") 
+        # strip.text = element_text(size=12),
+        # axis.text.y= element_text(size=12),
+        )
+
+GPP_correlations  
+ggsave(here("figures/GPP_correlations.png"), dpi=600, width=6,height=8, units="in")
+
+
+
+## Second version uses only PREDICTED values. 
+## Are the patterns qualitatively the same as above? 
+preds_full <-read.csv(here('data/preliminaryMetropolisResults/ExtendedRangeParameter_outputWestimatedloads.csv'), header=T,sep=",") 
+names(preds_full)
+
+
+
+my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
+                             zMixHat="log[10]~Mixed~layer~depth~(m)", V="log[10]~Volume~(~10^6~m^3)",
+                             CHat="DOC[lake]~(mg~L^1)", TPHat="TP[lake]~(mu~g~L^-1)",
+                             # DOCin="Mean~daily~DOC~load~(kg)",
+                             # Pin="Mean~daily~TP~load~(kg)",
+                             Pin="TP[inflow]~(mu~g~L^-1)",
+                             DOCin="DOC[inflow]~(mg~L^1)",
+                             CP="DOC~to~TP~ratio~(inflow)"),
+                             default = label_parsed)
+
+predGPP_correlations<-
+  preds_full %>%
+  left_join(., master_df %>%
+              select(lakeName, LSA_km2, V), by="lakeName") %>%
+  mutate(CP=DOCin/(Pin),
+         V=V/1000000) %>%
+  select(-c(AHat, PHat)) %>%
+  pivot_longer(-(c("lakeName","GPPHat"))) %>%
+  mutate(name=factor(name,
+                     levels=c("GPPHat","DOCin","CHat",
+                              "Pin","TPHat",
+                              "CP","zMixHat",
+                              "LSA_km2","V")))%>%
+  ggplot(aes(x=value, y=GPPHat))+
+  geom_smooth(method="lm", se=T, color="grey50", fill="#fee08b", size=0.5)+
+  geom_point(size=3, shape=21, color="black", fill="#fee08b", alpha=0.5)+
+  facet_wrap(.~name, scales="free",ncol=2,
+             labeller=my_labeller, strip.position="bottom")+
+  scale_y_log10(expression(paste('Predicted GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma, breaks_log(n = 6, base = 10))+
+  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
+  theme_few()+
+  theme(legend.position="none",
+        axis.title.x=element_blank(),
+        strip.placement = "outside",
+        strip.background = element_blank(),
+        plot.margin = margin(1,1,0.5,0.5, "cm") 
+        # strip.text = element_text(size=12),
+        # axis.text.y= element_text(size=12),
+        )
+
+predGPP_correlations  
+ggsave(here("figures/GPP_correlations_predictedVals.png"), dpi=600, width=6,height=8, units="in")
+
+
+#####Both on the same graph
+my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
+                             meanzMix="log[10]~Mixed~layer~depth~(m)", V="log[10]~Volume~(~10^6~m^3)",
+                             DOC_mgL="DOC~(mg~L^1)", TP_ugL="TP~(mu~g~L^-1)",
+                             TP_mgm3_mod="TP[inflow]~(mu~g~L^-1)",
+                             DOC_gm3_mod="DOC[inflow]~(mg~L^1)",
+                             CP="DOC~to~TP~ratio~(loads)"),
+                             
+                           default = label_parsed)
+
+
+  plot_data<-  master_df %>%
+  left_join(., preds_full %>%
+                select(lakeName, GPPHat),  by="lakeName") %>%
+  select(meanGPP, GPPHat, DOC_gm3_mod, TP_mgm3_mod,
+         meanzMix, TP_ugL, DOC_mgL, LSA_km2, V) %>%
+  mutate(CP=DOC_gm3_mod/(TP_mgm3_mod),
+         V=V/1000000) %>%
+  pivot_longer(-(1:2)) %>%
+  rename(predictor_variable=name,
+         predictor_value=value)%>%
+  mutate(predictor_variable=factor(predictor_variable,
+                     levels=c("DOC_gm3_mod","DOC_mgL",
+                              "TP_mgm3_mod","TP_ugL",
+                              "CP","meanzMix",
+                              "LSA_km2","V")))%>%
+  pivot_longer(-(3:4)) %>%
+  rename(response_variable=name,
+         response_value=value)%>%
+  # filter(response_value>1)%>%
+  mutate(response_variable=factor(response_variable,
+                     labels=c("Measured GPP","Modeled GPP")))
+
+predGPP_correlations<- plot_data %>%
+  # filter(response_variable=="Modeled GPP")%>%
+  ggplot(aes(x=predictor_value, y=response_value, fill=response_variable, linetype=response_variable))+
+  geom_point(size=3, shape=21, color="black", alpha=0.5)+
+  geom_smooth(method="lm", se=T, color="black")+
+  facet_wrap(.~predictor_variable, scales="free",ncol=2,
+             labeller=my_labeller, strip.position="bottom")+
+  scale_y_log10(expression(paste('GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma, breaks_log(n = 6, base = 10))+
+  scale_fill_manual(values=c("#ffc300","#003566"),
+                    name="Legend:")+
+  scale_linetype_manual(values=c(1,6),
+                    name="Legend:")+
+  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
+  theme_classic()+
+  theme(axis.title.x=element_blank(),
+        strip.placement = "outside",
+        strip.background = element_blank(),
+        plot.margin = margin(1,1,0.5,0.5, "cm") 
+        # strip.text = element_text(size=12),
+        # axis.text.y= element_text(size=12),
+        )
+
+predGPP_correlations  
+
+ggsave(here("figures/GPP_correlations_obs_and_predicted_Vals.png"), dpi=600, width=6,height=8, units="in")
+
+
+
+
+##### Same as above but with inflow loads instead of concentrations
+my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
+                             meanzMix="log[10]~Mixed~layer~depth~(m)", V="log[10]~Volume~(~10^6~m^3)",
+                             DOC_mgL="DOC~(mg~L^1)", TP_ugL="TP~(mu~g~L^-1)",
+                             TP_load_modeled="Mean~daily~TP~load~(kg)",
+                             DOC_load_modeled="Mean~daily~DOC~load~(kg)",
+                             CP="DOC~to~TP~ratio~(loads)"),
+                             
+                           default = label_parsed)
+
+
+  plot_data<-  master_df %>%
+  left_join(., preds_full %>%
+                select(lakeName, GPPHat),  by="lakeName") %>%
+  select(meanGPP, GPPHat, DOC_load_modeled, TP_load_modeled,
+         meanzMix, TP_ugL, DOC_mgL, LSA_km2, V) %>%
+  mutate(CP=DOC_load_modeled/(TP_load_modeled),
+         V=V/1000000) %>%
+  pivot_longer(-(1:2)) %>%
+  rename(predictor_variable=name,
+         predictor_value=value)%>%
+  mutate(predictor_variable=factor(predictor_variable,
+                     levels=c("DOC_load_modeled","DOC_mgL",
+                              "TP_load_modeled","TP_ugL",
+                              "CP","meanzMix",
+                              "LSA_km2","V")))%>%
+  pivot_longer(-(3:4)) %>%
+  rename(response_variable=name,
+         response_value=value)%>%
+  # filter(response_value>1)%>%
+  mutate(response_variable=factor(response_variable,
+                     labels=c("Measured GPP","Modeled GPP")))
+
+predGPP_correlations2<- plot_data %>%
+  # filter(response_variable=="Modeled GPP")%>%
+  ggplot(aes(x=predictor_value, y=response_value, fill=response_variable, linetype=response_variable))+
+  geom_point(size=3, shape=21, color="black", alpha=0.5)+
+  geom_smooth(method="lm", se=T, color="black")+
+  facet_wrap(.~predictor_variable, scales="free",ncol=2,
+             labeller=my_labeller, strip.position="bottom")+
+  scale_y_log10(expression(paste('GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma, breaks_log(n = 6, base = 10))+
+  scale_fill_manual(values=c("#ffc300","#003566"),
+                    name="Legend:")+
+  scale_linetype_manual(values=c(1,6),
+                    name="Legend:")+
+  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
+  theme_classic()+
+  theme(axis.title.x=element_blank(),
+        strip.placement = "outside",
+        strip.background = element_blank(),
+        plot.margin = margin(1,1,0.5,0.5, "cm") 
+        # strip.text = element_text(size=12),
+        # axis.text.y= element_text(size=12),
+        )
+
+predGPP_correlations2  
+
+ggsave(here("figures/GPP_correlations_obs_and_predicted_Vals_v2.png"), dpi=600, width=6,height=8, units="in")
+
+```
+
 ### Figure 2. Pred vs Obs params for 18 calibration lakes
 
 ```{r}
@@ -414,6 +641,70 @@ ggsave(here("figures/modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600,
 
 
 ```
+
+
+### Figure 3 - TP vs DOC as a ftn of GPP
+```{r}
+
+#TP lake vs DOC lake
+  master_df %>%
+  # filter(!lakeName=="Annie")%>%
+  ggplot(aes(y=TP_ugL, x=DOC_mgL, size=LSA_sizeclass, fill=log10(medianGPP)))+
+  geom_point(shape=21, color="black", alpha=0.5)+
+  scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
+                                   name="Log GPP")+
+  scale_size_discrete(name=expression(paste('Lake size (km'^2,')')))+
+  theme_pubr(base_size = 18)+
+  ylab(expression(paste('TP (ug L'^-1,') lake conc.')))+
+  xlab(expression(paste('DOC (mg L'^-1,') lake conc.')))+
+      theme(legend.position = c(.90, 0.9),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.title.align = 0,
+        legend.direction = "horizontal",
+        legend.box = "vertical",
+        legend.background = element_blank(),
+        legend.margin = margin(0, 0, 0, 0))+
+    guides(size = guide_legend(label.position = "bottom", 
+            title.position = "left", title.vjust = 0.8)) 
+
+
+# my_breaks = c(2, 10, 50, 250, 1250, 6000)
+my_breaks = c(0.1, 100, 1000)
+#TP inflow vs DOC inflow
+  master_df %>%
+  # filter(!lakeName=="Annie")%>%
+  ggplot(aes(y=(TP_mgm3_mod), x=(DOC_gm3_mod),
+             # size=LSA_sizeclass,
+             fill=medianGPP))+
+  geom_point(shape=21, color="black", alpha=0.9, size=3)+
+
+    scale_fill_distiller(palette ="Spectral", direction = -1)+
+  # scale_fill_gradientn(trans = "log10", colors=rainbow(5),
+  #                       breaks = my_breaks, labels = my_breaks,
+  #                      name="log10 GPP")+ #Make it rainbow to match the eventual heatmap
+  # scale_size_discrete(name=expression(paste('Lake size (km'^2,')')))+
+  theme_pubr(base_size = 10)+
+  ylab(expression(paste('TP (ug L'^-1,') inflow conc')))+
+  xlab(expression(paste('DOC (mg L'^-1,') inflow conc')))+
+      theme(legend.position = c(.90, 0.9),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.title.align = 0,
+        legend.direction = "horizontal",
+        legend.box = "vertical",
+        legend.background = element_blank(),
+        legend.margin = margin(0, 0, 0, 0))
+    # guides(size = guide_legend(label.position = "bottom", 
+    #         title.position = "left", title.vjust = 0.8))
+
+ggsave(here("figures/CaryMeeting/TPinvsDOCin_ftnOfLSA_GPP.png"), width=4, height=4,units="in", dpi=600)
+
+
+
+```
+
+
 
 ### Figure 4. Parameters
 
@@ -882,273 +1173,6 @@ master_df %>%
   geom_point(shape=21,size=3, fill="grey50")
 ```
 
-### Fig3- correleations among GPP, loads,zmix,nutrients,SA,volume
-```{r}
-
-  my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
-                             meanzMix="log[10]~Mixed~layer~depth~(m)", V_m3="log[10]~Volume~(m^3)",
-                             DOC_mgL="DOC~(mg~L^1)", TP_ugL="TP~(mu~g~L^-1)",
-                             DOC_load_kgday_mean="Mean~daily~DOC~load~(kg)",
-                             TP_load_kgday_mean="Mean~daily~TP~load~(kg)",
-                             CP="DOC~to~TP~ratio~(loads)"),
-                             
-                           default = label_parsed)
-
-GPP_correlations<-master_df %>%
-  select(meanGPP, DOC_load_kgday_mean, TP_load_kgday_mean,
-         meanzMix, TP_ugL, DOC_mgL, LSA_km2, V_m3) %>%
-  mutate(CP=DOC_load_kgday_mean/(TP_load_kgday_mean)) %>%
-  pivot_longer(-(1)) %>%
-  mutate(name=factor(name,
-                     levels=c("DOC_load_kgday_mean","DOC_mgL",
-                              "TP_load_kgday_mean","TP_ugL",
-                              "CP","meanzMix",
-                              "LSA_km2","V_m3")))%>%
-  ggplot(aes(x=value, y=meanGPP))+
-  geom_point(size=3, shape=21, color="black", fill="black", alpha=0.5)+
-  facet_wrap(.~name, scales="free",ncol=2,
-             labeller=my_labeller, strip.position="bottom")+
-  scale_y_log10(expression(paste('GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma, breaks_log(n = 6, base = 10))+
-  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
-  theme_classic()+
-  theme(legend.position="none",
-        axis.title.x=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        plot.margin = margin(1,1,0.5,0.5, "cm") 
-        # strip.text = element_text(size=12),
-        # axis.text.y= element_text(size=12),
-        )
-
-GPP_correlations  
-
-
-master_df %>%
-  mutate(CP=DOC_load_kgday_mean/(TP_load_kgday_mean*1000)) %>%
-  ggplot(aes(x=CP, y=meanGPP))+
-  geom_point()+
-  scale_y_log10(expression(paste('GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma, breaks_log(n = 6, base = 10))+
-    scale_x_log10("C:P",labels = scales::comma, breaks_log(n = 5, base = 10))
-
-
-###For what it's worth, I tried segmented regression but nothing comes up. 
-# segmented<-master_df %>%
-#   mutate(CP=log10(DOC_load_kgday_mean/(TP_load_kgday_mean*1000)),
-#         GPP= log10(meanGPP))
-#   
-# install.packages("segmented")  
-# library(segmented)
-# 
-# my.lm<-lm(GPP~CP, segmented)
-# 
-# # have to provide estimates for breakpoints.
-# # after looking a the data, 
-# my.seg <- segmented(my.lm, 
-#                     seg.Z = ~ CP, 
-#                     psi = NA)
-# 
-# # When not providing estimates for the breakpoints "psi = NA" can be used.
-# # The number of breakpoints that will show up is not defined
-# #my.seg <- segmented(my.lm, 
-# #                    seg.Z = ~ DistanceMeters, 
-# #                    psi = NA)
-# 
-# # display the summary
-# summary(my.seg)  
-
-
-#### Also try this with the PREDICTED GPP values. 
-#Do we qualitatively see the patterns that we would expect? 
-
-  my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
-                             meanzMix="log[10]~Mixed~layer~depth~(m)", V_m3="log[10]~Volume~(m^3)",
-                             DOC_mgL="DOC~(mg~L^1)", TP_ugL="TP~(mu~g~L^-1)",
-                             DOC_load_kgday_mean="Mean~daily~DOC~load~(kg)",
-                             TP_load_kgday_mean="Mean~daily~TP~load~(kg)",
-                             CP="DOC~to~TP~ratio~(loads)"),
-                             
-                           default = label_parsed)
-
-predGPP_correlations<-
-  master_df %>%
-  left_join(., preds_full,  by="lakeName") %>%
-    left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  dplyr::select(PPareal, DOC_load_kgday_mean, TP_load_kgday_mean,
-         meanzMix, TP_ugL, DOC_mgL, LSA_km2, V_m3) %>%
-  mutate(CP=DOC_load_kgday_mean/(TP_load_kgday_mean*1000)) %>%
-  pivot_longer(-(1)) %>%
-  mutate(name=factor(name,
-                     levels=c("DOC_load_kgday_mean","DOC_mgL",
-                              "TP_load_kgday_mean","TP_ugL",
-                              "CP","meanzMix",
-                              "LSA_km2","V_m3")))%>%
-  ggplot(aes(x=value, y=PPareal))+
-  geom_point(size=3, shape=21, color="black", fill="black", alpha=0.5)+
-  geom_smooth(method="lm", se=T, color="black")+
-  facet_wrap(.~name, scales="free",ncol=2,
-             labeller=my_labeller, strip.position="bottom")+
-  scale_y_log10(expression(paste('Predicted GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma, breaks_log(n = 6, base = 10))+
-  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
-  theme_classic()+
-  theme(legend.position="none",
-        axis.title.x=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        plot.margin = margin(1,1,0.5,0.5, "cm") 
-        # strip.text = element_text(size=12),
-        # axis.text.y= element_text(size=12),
-        )
-
-predGPP_correlations  
-
-
-#####Both on the same graph?
-#### Also try this with the PREDICTED GPP values. 
-#Do we qualitatively see the patterns that we would expect? 
-my_labeller <- as_labeller(c(HRT_days="log[10]~HRT~(days)", LSA_km2="log[10]~Surface~Area~(km^2)",
-                             meanzMix="log[10]~Mixed~layer~depth~(m)", V_m3="log[10]~Volume~(m^3)",
-                             DOC_mgL="DOC~(mg~L^1)", TP_ugL="TP~(mu~g~L^-1)",
-                             DOC_load_kgday_mean="Mean~daily~DOC~load~(kg)",
-                             TP_load_kgday_mean="Mean~daily~TP~load~(kg)",
-                             CP="DOC~to~TP~ratio~(loads)"),
-                             
-                           default = label_parsed)
-
-
-  plot_data<-  master_df %>%
-    left_join(., sims %>%
-                select(lakeName, eqDOC:nutrient.limit.d),  by="lakeName") %>%
-    left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  select(meanGPP, PPareal, DOC_load_kgday_mean, TP_load_kgday_mean,
-         meanzMix, TP_ugL, DOC_mgL, LSA_km2, V_m3) %>%
-  mutate(CP=DOC_load_kgday_mean/(TP_load_kgday_mean*1000)) %>%
-  pivot_longer(-(1:2)) %>%
-  rename(predictor_variable=name,
-         predictor_value=value)%>%
-  mutate(predictor_variable=factor(predictor_variable,
-                     levels=c("DOC_load_kgday_mean","DOC_mgL",
-                              "TP_load_kgday_mean","TP_ugL",
-                              "CP","meanzMix",
-                              "LSA_km2","V_m3")))%>%
-  pivot_longer(-(3:4)) %>%
-  rename(response_variable=name,
-         response_value=value)%>%
-    filter(response_value>1)%>%
-  mutate(response_variable=factor(response_variable,
-                     labels=c("Measured GPP","Modeled GPP")))
-
-predGPP_correlations<- plot_data %>%
-  # filter(response_variable=="Modeled GPP")%>%
-  ggplot(aes(x=predictor_value, y=response_value, fill=response_variable, linetype=response_variable))+
-  geom_point(size=3, shape=21, color="black", alpha=0.5)+
-  geom_smooth(method="lm", se=T, color="black")+
-  facet_wrap(.~predictor_variable, scales="free",ncol=2,
-             labeller=my_labeller, strip.position="bottom")+
-  scale_y_log10(expression(paste('Predicted GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma, breaks_log(n = 6, base = 10))+
-  scale_fill_manual(values=c("#ffc300","#003566"),
-                    name="Legend:")+
-  scale_linetype_manual(values=c(1,6),
-                    name="Legend:")+
-  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
-  theme_classic()+
-  theme(axis.title.x=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        plot.margin = margin(1,1,0.5,0.5, "cm") 
-        # strip.text = element_text(size=12),
-        # axis.text.y= element_text(size=12),
-        )
-
-predGPP_correlations  
-
-ggsave(here("results/draft MS figs/correlationsWithGPP.png"), width=9, height=8,units="in", dpi=600)
-
-#JUST OBSERVED VALUES
-left_join(sims, master_df %>%
-              select(lakeName, medianGPP, dataset), by="lakeName") %>%
-  left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-    select(medianGPP, PPareal, DOC_load_kgday_mean, TP_load_kgday_mean,
-         meanzMix, TP, DOC, SA, V_m3) %>%
-  mutate(CP=DOC_load_kgday_mean/(TP_load_kgday_mean*1000)) %>%
-  pivot_longer(-(1:2)) %>%
-    rename(predictor_variable=name,
-         predictor_value=value)%>%
-  mutate(predictor_variable=factor(predictor_variable,
-                     levels=c("DOC_load_kgday_mean","DOC",
-                              "TP_load_kgday_mean","TP",
-                              "CP","meanzMix",
-                              "SA","V_m3")))%>%
-  ggplot(aes(x=predictor_value, y=medianGPP))+
-  geom_point(size=3, shape=21, color="black", alpha=0.5)+
-  geom_smooth(method="lm", se=T, color="black")+
-  facet_wrap(.~predictor_variable, scales="free_x",ncol=2,
-             labeller=my_labeller, strip.position="bottom")+
-  scale_y_log10(expression(paste('Observed GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma, breaks_log(n = 6, base = 10))+
-  # scale_fill_manual(values=c("#ffc300","#003566"),
-  #                   name="Legend:")+
-  # scale_linetype_manual(values=c(1,6),
-  #                   name="Legend:")+
-  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
-  theme_classic()+
-  theme(axis.title.x=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        plot.margin = margin(1,1,0.5,0.5, "cm") ) 
-  
-#JUST PREDICTED VALUES
-left_join(sims, master_df %>%
-              select(lakeName, medianGPP, dataset), by="lakeName") %>%
-  left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-    select(medianGPP, PPareal, DOC_load_kgday_mean, TP_load_kgday_mean,
-         meanzMix, TP, DOC, SA, V_m3) %>%
-  mutate(CP=DOC_load_kgday_mean/(TP_load_kgday_mean*1000)) %>%
-  pivot_longer(-(1:2)) %>%
-    rename(predictor_variable=name,
-         predictor_value=value)%>%
-  # mutate(predictor_variable=factor(predictor_variable,
-  #                    levels=c("DOC_load_kgday_mean","DOC",
-  #                             "TP_load_kgday_mean","TP",
-  #                             "CP","meanzMix",
-  #                             "SA","V_m3")))%>%
-  ggplot(aes(x=predictor_value, y=PPareal))+
-  geom_point(size=3, shape=21, color="black", alpha=0.5)+
-  geom_smooth(method="lm", se=T, color="black")+
-  facet_wrap(.~predictor_variable, scales="free_x",ncol=2,
-             strip.position="bottom")+
-  # scale_y_log10(expression(paste('Predicted GPP (mg C m'^-2,' day'^-1,')')),
-  #               labels = scales::comma, breaks_log(n = 6, base = 10))+
-  # scale_fill_manual(values=c("#ffc300","#003566"),
-  #                   name="Legend:")+
-  # scale_linetype_manual(values=c(1,6),
-  #                   name="Legend:")+
-  scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
-  theme_classic()+
-  theme(axis.title.x=element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        plot.margin = margin(1,1,0.5,0.5, "cm") ) 
-
-summary(sims)
-
-left_join(sims, master_df %>%
-              select(lakeName, medianGPP, dataset), by="lakeName") %>%
-  left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-    select(medianGPP, PPareal, DOC_load_kgday_mean, TP_load_kgday_mean,
-         meanzMix, TP, DOC, SA, V_m3) %>%
-  ggplot(aes(x=PPareal, y=medianGPP))+
-  geom_point()
-```
-
 #### Linear models
 ```{r}
 GPP_linearmodels<-
@@ -1528,94 +1552,6 @@ MeanGPPvDOCvloadCP
 ggsave(here("figures/GLEON/GPPversusDOC_FnOfCPandSA.png"), width=12, height=6,units="in", dpi=600)
 
 ```
-
-#### - TP vs DOC as a ftn of GPP
-```{r}
-
-#TP lake vs DOC lake
-  master_df %>%
-  # filter(!lakeName=="Annie")%>%
-  ggplot(aes(y=TP_ugL, x=DOC_mgL, size=LSA_sizeclass, fill=log10(medianGPP)))+
-  geom_point(shape=21, color="black", alpha=0.5)+
-  scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
-                                   name="Log GPP")+
-  scale_size_discrete(name=expression(paste('Lake size (km'^2,')')))+
-  theme_pubr(base_size = 18)+
-  ylab(expression(paste('TP (ug L'^-1,') lake conc.')))+
-  xlab(expression(paste('DOC (mg L'^-1,') lake conc.')))+
-      theme(legend.position = c(.90, 0.9),
-        legend.justification = c("right", "top"),
-        legend.box.just = "right",
-        legend.title.align = 0,
-        legend.direction = "horizontal",
-        legend.box = "vertical",
-        legend.background = element_blank(),
-        legend.margin = margin(0, 0, 0, 0))+
-    guides(size = guide_legend(label.position = "bottom", 
-            title.position = "left", title.vjust = 0.8)) 
-
-
-# my_breaks = c(2, 10, 50, 250, 1250, 6000)
-my_breaks = c(0.1, 100, 1000)
-#TP inflow vs DOC inflow
-  master_df %>%
-  # filter(!lakeName=="Annie")%>%
-  ggplot(aes(y=(TP_mgm3_mod), x=(DOC_gm3_mod),
-             # size=LSA_sizeclass,
-             fill=medianGPP))+
-  geom_point(shape=21, color="black", alpha=0.9, size=3)+
-  # scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
-  #                                  name="Log GPP")+
-  # scale_fill_gradientn(colours = rainbow(5))+
-  scale_fill_gradientn(trans = "log10", colors=rainbow(5),
-                        breaks = my_breaks, labels = my_breaks,
-                       name="log10 GPP")+ #Make it rainbow to match the eventual heatmap
-  # scale_size_discrete(name=expression(paste('Lake size (km'^2,')')))+
-  theme_pubr(base_size = 10)+
-  ylab(expression(paste('TP (ug L'^-1,') inflow conc')))+
-  xlab(expression(paste('DOC (mg L'^-1,') inflow conc')))+
-      theme(legend.position = c(.90, 0.9),
-        legend.justification = c("right", "top"),
-        legend.box.just = "right",
-        legend.title.align = 0,
-        legend.direction = "horizontal",
-        legend.box = "vertical",
-        legend.background = element_blank(),
-        legend.margin = margin(0, 0, 0, 0))
-    # guides(size = guide_legend(label.position = "bottom", 
-    #         title.position = "left", title.vjust = 0.8))
-
-ggsave(here("figures/CaryMeeting/TPinvsDOCin_ftnOfLSA_GPP.png"), width=4, height=4,units="in", dpi=600)
-
-
-#Same as above, but loads
-  master_df %>%
-  filter(!lakeName=="Kentucky")%>%
-  ggplot(aes(y=log10(TP_load_kg), x=log10(DOC_load_kg),
-             # size=LSA_sizeclass,
-             fill=medianGPP))+
-  geom_point(shape=21, color="black", alpha=0.9, size=3)+
-  # scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
-  #                                  name="Log GPP")+
-  # scale_fill_gradientn(colours = rainbow(5))+
-  scale_fill_gradientn(trans = "log", colors=rainbow(5),
-                        breaks = my_breaks, labels = my_breaks,
-                       name="log10 GPP")+ #Make it rainbow to match the eventual heatmap
-  # scale_size_discrete(name=expression(paste('Lake size (km'^2,')')))+
-  theme_pubr(base_size = 10)+
-    labs(x="DOC load (kg)",
-         y="TP load (kg)")+
-      theme(legend.position = c(0.4, 0.9),
-        legend.justification = c("right", "bottom"),
-        legend.box.just = "right",
-        legend.title.align = 0,
-        legend.direction = "horizontal",
-        legend.box = "vertical",
-        legend.background = element_blank(),
-        legend.margin = margin(0, 0, 0, 0))
-
-```
-
 
 ### Figure 5 - Obs vs pred
 ```{r}
