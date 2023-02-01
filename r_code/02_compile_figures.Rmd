@@ -743,6 +743,24 @@ D  <-
 ggsave(here("figures/MS/Fig2.modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600, width=8,height=8, units="in")
 
 
+## RMSEs
+GPP_vals <- compareVals %>% select(GPPHat, meanGPP, medianGPP)
+
+#MeanGPP
+actual_GPP_mean <- GPP_vals$meanGPP
+#MedianGPP
+actual_GPP_median <- GPP_vals$medianGPP
+
+pred_GPP <- GPP_vals$GPPHat
+
+#RMSE with MeanGPP
+Metrics::rmse(actual_GPP_mean,pred_GPP)
+
+#RMSE with MedianGPP
+Metrics::rmse(actual_GPP_median,pred_GPP)
+
+
+
 ## This version includes all of the lakes --- though note in the original Metropolis run I only got 49 lakes back from Stuart. Need to look into why that is. 
 A <- all_compareVals %>%
   ggplot(aes(y=TPHat, x=TP, fill=set))+
@@ -791,6 +809,24 @@ combined +  plot_annotation(tag_levels = 'A') +
   plot_layout(guides = "collect")
 
 ggsave(here("figures/MS/Fig2.modeled_vs_measured_TP_DOC_zMIX_GPP_allLakes.png"), dpi=600, width=8,height=8, units="in")
+
+
+## RMSEs
+GPP_vals <- all_compareVals %>% filter(set=="modeled") %>% select(GPPHat, meanGPP, medianGPP)
+
+#MeanGPP
+actual_GPP_mean <- GPP_vals$meanGPP
+#MedianGPP
+actual_GPP_median <- GPP_vals$medianGPP
+
+pred_GPP <- GPP_vals$GPPHat
+
+#RMSE with MeanGPP
+Metrics::rmse(actual_GPP_mean,pred_GPP)
+
+#RMSE with MedianGPP
+Metrics::rmse(actual_GPP_median,pred_GPP)
+
 
 
 ```
@@ -899,10 +935,10 @@ Create the skeleton for an eventual figure that shows the updated parameters and
 ```{r}
 lit_params <- read.csv("~/Google Drive/My Drive/Collaborations/(1) Kelly Model Test/Data/Data repository/ParameterEstimatesLiterature.csv") %>%
   select(-description, -sources) %>%
-  mutate(set="kelly") %>% #call this kelly for now so we have the kelly values map onto the literature range
+  mutate(set="literature") %>% #call this kelly for now so we have the kelly values map onto the literature range
          # value=(min+max)/2) %>%
-  rename(min_lit=min,
-         max_lit=max)
+  rename(low=min,
+         high=max)
   # pivot_longer(2:3)
 
 
@@ -913,17 +949,17 @@ gridSearchVals<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_wid
 #Quick ftns for getting 10th and 90th quantiles.
 #Tried 5 and 95th but there are some extreme outliers that made the plots look weird
 quant_10 <- function(x)  {
-  quantile(x, probs = 0.10)
+  quantile(x, probs = 0.05)
 }
 
 quant_90 <- function(x)  {
-  quantile(x, probs = 0.90)
+  quantile(x, probs = 0.95)
 }
 
 
 
 #Summarize 10th and 90th quantile for each parameter
-gridSearchQuantiles <-
+gridSearchQuantiles_wideRange <-
   gridSearchVals %>%
   summarise_all(list(quant_90=~quant_90(.), quant_10=~quant_10(.))) %>%
   pivot_longer(cols=everything(),
@@ -933,14 +969,51 @@ gridSearchQuantiles <-
   pivot_wider(id_cols=parameter,
               names_from=quantile,
               values_from=value) %>%
-  rename(quant_90=`90`,
-         quant_10=`10`) %>%
-  mutate(quant_90=exp(quant_90), #exponentiate since values were on log scale
-         quant_10=exp(quant_10))
+  rename(high=`90`,
+         low=`10`) %>%
+  mutate(high=exp(high), #exponentiate since values were on log scale
+         low=exp(low)) %>%
+  mutate(set="wide range")
 
 params<-read.csv(here("data/preliminaryMetropolisResults/kellymodel_parametersets4bella.csv"),
                  stringsAsFactors = FALSE) %>%
   rename(set=X)
+
+
+#First calculate the 95% confidence intervals from the Metroplis "wide range"
+gridSearchVals<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_NOTthin_litRange_longCRCrun.csv"),
+                 stringsAsFactors = FALSE) 
+
+
+
+
+#Summarize 10th and 90th quantile for each parameter
+gridSearchQuantiles_litRange <-
+  gridSearchVals %>%
+  summarise_all(list(quant_90=~quant_90(.), quant_10=~quant_10(.))) %>%
+  pivot_longer(cols=everything(),
+               names_prefix = c("_quant_95","_quant_5"),
+               names_sep = "_quant_",
+               names_to = c("parameter","quantile")) %>% 
+  pivot_wider(id_cols=parameter,
+              names_from=quantile,
+              values_from=value) %>%
+  rename(high=`90`,
+         low=`10`) %>%
+  mutate(high=exp(high), #exponentiate since values were on log scale
+         low=exp(low)) %>%
+  mutate(set="constrained range")
+
+#Combine
+gridSearchQuantiles <- bind_rows(gridSearchQuantiles_litRange,
+                                 gridSearchQuantiles_wideRange)
+
+
+
+params<-read.csv(here("data/preliminaryMetropolisResults/kellymodel_parametersets4bella.csv"),
+                 stringsAsFactors = FALSE) %>%
+  rename(set=X)
+
 
 #Grab just the maximum log likelihood from the 'wide range' Metropolis run
 paramSetLong <- params %>%
@@ -948,92 +1021,62 @@ paramSetLong <- params %>%
   # select(-set) %>%
   pivot_longer(pA:rec, names_to="parameter", values_to="value") 
 
+#Separate them, then recombine after rename the set
 kellySet <- paramSetLong %>%
   filter(set=="kelly")
 
-maxLikelihoodSet <- paramSetLong %>%
+wideSet <- paramSetLong %>%
   filter(set=="max log likelihood wide") %>%
-  rename(max_likelihood=value) %>%
-  mutate(set="optim")
-  # mutate(max_likelihood=exp(max_likelihood)) # exponentiate since values were on log-scale
+  # rename(max_likelihood=value) %>%
+  mutate(set="wide range")
 
+constrainedSet <- paramSetLong %>%
+  filter(set=="max log likelihood narrow not thinned") %>%
+  # rename(max_likelihood=value) %>%
+  mutate(set="constrained range")
+
+maxLikelihoodSet <- bind_rows(kellySet,
+                          wideSet,
+                          constrainedSet)
 
 #Join with the 5th and 95th quantile dataframe
-optim_params <- full_join(gridSearchQuantiles,maxLikelihoodSet)
+optim_params <- full_join(gridSearchQuantiles,maxLikelihoodSet) %>%
+  full_join(., lit_params)
+
 
 # Parameter comparison plots (optim vs. kelly + literature range)
 optim_params %>%
-  pivot_longer(cols=max_likelihood, names_to="name", values_to="value") %>%
+  pivot_longer(cols=value, names_to="name", values_to="value") %>%
   select(-name) %>%
-  bind_rows(., kellySet) %>%
-  left_join(., lit_params) %>%
-  ggplot(aes(x=set, y=value, group=set, color=set)) + 
-  geom_point()+
-  geom_errorbar(aes(ymin=min_lit, ymax=max_lit), width=.2,
+  mutate(set=factor(set,
+                    levels=c("kelly",
+                             "literature",
+                             "constrained range",
+                             "wide range"),
+                    labels=c("original model",
+                             "literature range",
+                             "Metrop. constrained",
+                             "Metrop. full range"))) %>%
+  ggplot(aes(x=set, y=value, group=set, fill=set, color=set)) + 
+  geom_errorbar(aes(ymin=low, ymax=high), width=.5,
                  position=position_dodge(.9)) +
-  # geom_pointrange(aes(ymin=min_lit, ymax=max_lit)) +
-  geom_errorbar(aes(ymin=quant_10, ymax=quant_90), width=.2,
-                 position=position_dodge(.9)) +
-  scale_color_manual(values=c("black","purple"))+
+  geom_point(color="black", shape=21)+
+  colorblindr::scale_fill_OkabeIto(order = c(1,2,4,6),
+                                   name="Legend:")+
+  colorblindr::scale_color_OkabeIto(order = c(1,2,4,6),
+                                    name="Legend:")+
+  # scale_color_manual(values=c("black","purple","blue","orange"))+
   facet_wrap(~parameter, scales="free", ncol=5) +
   theme_few()+
-  theme(legend.position="none")
-ggsave(here("figures/point_plots_kelly_optim_lit_parameter_ranges.png"), dpi=600, width=7,height=4.5, units="in")
+  theme(legend.position="bottom",
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.x=element_blank(),
+        legend.margin = margin(0, 0, 0, 0))+
+  labs(y="Parameter value")
+ggsave(here("figures/MS/Figure4.point_plots_kelly_optim_lit_parameter_ranges.png"), dpi=600, width=7,height=3.5, units="in")
 
 
-#Histograms of all the parameters
-gridSearchVals %>%
-  pivot_longer(cols=everything(), names_to = "parameter", values_to = "value") %>%
-  ggplot(aes(x=exp(value)))+
-  geom_histogram(bins=50)+
-  geom_vline(aes(xintercept=max_likelihood, group=parameter), optim_params, color="maroon")+
-  facet_wrap(~parameter, scales="free", ncol=5) +
-  theme_few()+
-  labs(title="Histograms of wide-range parameter set",
-       subtitle="Red line indicates maximum log likelihood values")+
-  theme(axis.title.x=element_blank())
-ggsave(here("figures/histograms_parameter_maxlogliklihood.png"), dpi=600, width=14,height=8, units="in")
-
-
-#
-
-# 
-# params<-data.frame(c(kDOC=0.42,kA=0.00022,lA=0.1,pA=1.2,hA=55,mA=2,decay=0.001,cA=0.015,v=0.1,rec=0.95))%>%
-#   rownames_to_column()
-# colnames(params) <- c('parameter','value')
-# params$cat <- "optim"
-# 
-# lit_params <- read.csv("~/Google Drive/My Drive/Collaborations/(1) Kelly Model Test/Data/Data repository/ParameterEstimatesLiterature.csv") %>%
-#   select(-description, -sources) %>%
-#   mutate(cat="range") %>%
-#   pivot_longer(2:3)
-# 
-# table <- full_join(params, lit_params)
-# 
-# table %>%
-#   ggplot(aes(x=cat, y=value, fill=cat, shape=cat)) +
-#   geom_point(size=2.5)+
-#   facet_wrap(~parameter, scales="free",nrow=2)+
-#   theme_few()+
-#   theme(legend.position="none", 
-#         axis.title.x=element_blank())+
-#   scale_fill_manual(values=c("red","black"))+
-#   scale_shape_manual(values=c(21,22)) +
-#   geom_line(aes(group=cat), linetype=1)
-
-# params %>%
-#   pivot_longer(-1) %>%
-#   ggplot(aes(x=set, y=value, fill=set, shape=set)) +
-#   geom_point(size=2.5)+
-#   facet_wrap(~name, scales="free",nrow=2)+
-#   theme_few()+
-#   theme(legend.position="none", 
-#         axis.title.x=element_blank())+
-#   scale_fill_manual(values=c("red","black","purple"))+
-#   scale_shape_manual(values=c(21,22,25)) 
-  # geom_line(aes(group=cat), linetype=1)
-
-```
 
 
 ### Table 1 - lake metadata
@@ -2341,7 +2384,7 @@ ggsave(here("figures/MS/FigureS2.boxplot_and_dailyGPP.png"), width=11, height=8.
 ```
 
 
-#### Figure S2. Measured vs. modeled loads
+#### Figure S3. Measured vs. modeled loads
 
 ```{r, out.width = '100%',fig.height=15}
 
@@ -2457,6 +2500,22 @@ B<-master_df %>%
 ggsave(here("figures/modeled_vs_measured_conc_18lakes.png"), dpi=600, width=8,height=5, units="in")
 
 
+## RMSEs
+DOC_vals <- master_df %>% filter(lakeName %in% observed_loads_kelly$lakeName) %>% drop_na(DOC_gm3_mod) %>% select(DOC_gm3_obs, DOC_gm3_mod)
+actual_DOCin <- DOC_vals$DOC_gm3_obs
+pred_DOCin <- DOC_vals$DOC_gm3_mod
+Metrics::rmse(actual_DOCin,pred_DOCin)
+
+TP_vals <- master_df %>% filter(lakeName %in% observed_loads_kelly$lakeName) %>% drop_na(TP_mgm3_mod) %>% select(TP_mgm3_obs, TP_mgm3_mod)
+actual_TPin <- TP_vals$TP_mgm3_obs
+pred_TPin <- TP_vals$TP_mgm3_mod
+Metrics::rmse(actual_TPin,pred_TPin)
+
+DOCin_lm <- lm(DOC_gm3_mod ~ DOC_gm3_obs, data=DOC_vals)
+summary(DOCin_lm)
+
+TPin_lm <- lm(TP_mgm3_mod ~ TP_mgm3_obs, data=TP_vals)
+summary(TPin_lm)
 
 #Plot using master_df dataset
 
@@ -2517,3 +2576,183 @@ E + plot_annotation(title = gg_title)
 ggsave(here("figures/modeled_vs_measured_CtoP_18lakes.png"), dpi=600, width=5,height=5, units="in")
 
 ```
+
+
+#### Figure S4. Pred vs Obs params for 18 calibration lakes using original Kelly model estimates
+
+```{r}
+
+predVals<-read.csv(here("data/preliminaryMetropolisResults/KellyParameter_outputWobservedloads.csv")) 
+obsVals<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_wphyto4bella.csv")) 
+# predVals_outOfSample<-read.csv(here("data/preliminaryMetropolisResults/ExtendedRangeParameter_outputWestimatedloads.csv")) 
+# obsVals_outOfSample<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_unmodeledInfoLakes4bella.csv")) 
+
+compareVals<-left_join(predVals,obsVals %>%
+                         select(lakeName, TP, DOC, meanzMix, medianGPP, meanGPP, phytoplanktonCarbon_assumed50C2Chl)) %>%
+  mutate(set="calibration")
+# compareVals2 <- left_join(predVals_outOfSample,obsVals_outOfSample %>%
+                            # select(lakeName, TP, DOC, meanzMix, medianGPP, meanGPP)) %>%
+  # mutate(set="modeled") %>%
+  # filter(!lakeName %in% compareVals$lakeName)
+
+# all_compareVals <- bind_rows(compareVals,
+                             # compareVals2)
+
+## This version includes only the calibration set (18 lakes)
+A <- compareVals %>%
+  ggplot(aes(y=TPHat, x=TP))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
+  # scale_y_continuous(trans = log10_trans(),
+  #   breaks = trans_breaks("log10", function(x) 10^x),
+  #   labels = trans_format("log10", math_format(10^.x)),
+  #   name = expression(paste('Modeled lake TP (mg m'^-3,')')))+
+  # scale_x_continuous(trans = log10_trans(),
+  #   breaks = trans_breaks("log10", function(x) 10^x),
+  #   labels = trans_format("log10", math_format(10^.x)),
+  #   name = expression(paste('Mean lake TP (mg m'^-3,')')))
+
+
+
+B  <- compareVals %>%
+  ggplot(aes(y=CHat, x=DOC))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
+  # scale_y_continuous(trans = log10_trans(),
+  #   breaks = trans_breaks("log10", function(x) 10^x),
+  #   labels = trans_format("log10", math_format(10^.x)),
+  #   name = expression(paste('Modeled lake DOC (g m'^-3,')')))+
+  # scale_x_continuous(trans = log10_trans(),
+  #   breaks = trans_breaks("log10", function(x) 10^x),
+  #   labels = trans_format("log10", math_format(10^.x)),
+  #   name = expression(paste('Mean lake DOC (g m'^-3,')')))
+
+C  <- compareVals %>%
+  ggplot(aes(y=zMixHat, x=meanzMix))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))
+  # scale_y_continuous(trans = log10_trans(),
+  #   breaks = trans_breaks("log10", function(x) 10^x),
+  #   labels = trans_format("log10", math_format(10^.x)),
+  #   name = expression(paste('Modeled z'[mix],' (m)')))+
+  # scale_x_continuous(trans = log10_trans(),
+  #   breaks = trans_breaks("log10", function(x) 10^x),
+  #   labels = trans_format("log10", math_format(10^.x)),
+  #   name = expression(paste('Mean z'[mix],' (m)')))
+
+D  <-
+  compareVals %>%
+  ggplot(aes(y=GPPHat, x=meanGPP))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  labs(x=expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),
+       y=expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')))
+
+E  <-
+  compareVals %>%
+  ggplot(aes(y=AHat, x=phytoplanktonCarbon_assumed50C2Chl))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean algal biomass')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled algal biomass')),labels = scales::comma, breaks_log(n = 5, base = 10))
+
+
+(A+B)/(C+D) + plot_annotation(tag_levels = 'A',
+                              title="Model predictions using original parameters from Kelly et al. 2018")
+
+ggsave(here("figures/MS/FigS4.modeled_vs_measured_18lakes_originalKelly.png"), dpi=600, width=8,height=8, units="in")
+
+
+## This version includes all of the lakes --- though note in the original Metropolis run I only got 49 lakes back from Stuart. Need to look into why that is. 
+A <- all_compareVals %>%
+  ggplot(aes(y=TPHat, x=TP, fill=set))+
+  geom_point(alpha=0.7, size=2.5, shape=21)+
+  theme_pubr()+
+  colorblindr::scale_fill_OkabeIto()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
+
+
+B  <- all_compareVals %>%
+  ggplot(aes(y=CHat, x=DOC, fill=set))+
+  geom_point(alpha=0.7, size=2.5, shape=21)+
+  theme_pubr()+
+  colorblindr::scale_fill_OkabeIto()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
+
+
+C  <- all_compareVals %>%
+  ggplot(aes(y=zMixHat, x=meanzMix, fill=set))+
+  geom_point(alpha=0.7, size=2.5, shape=21)+
+  theme_pubr()+
+  colorblindr::scale_fill_OkabeIto()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))
+
+
+D  <-
+  all_compareVals %>%
+  ggplot(aes(y=GPPHat, x=meanGPP, fill=set))+
+  geom_point(alpha=0.7, size=2.5, shape=21)+
+  theme_pubr()+
+  colorblindr::scale_fill_OkabeIto()+
+  geom_abline(intercept=0, slope=1)+
+  scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
+
+
+combined <- (A+B)/(C+D) & theme(legend.position="bottom") 
+
+combined +  plot_annotation(tag_levels = 'A') +
+  plot_layout(guides = "collect")
+
+ggsave(here("figures/MS/Fig2.modeled_vs_measured_TP_DOC_zMIX_GPP_allLakes.png"), dpi=600, width=8,height=8, units="in")
+
+
+```
+
+#### Figure S5. Parameter histograms
+```{r}
+
+#Histograms of all the parameters
+
+gridSearchVals_wide<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_wideRange_longCRCrun.csv"),
+                 stringsAsFactors = FALSE) %>%
+  mutate(set="wide range")
+gridSearchVals_constrained<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_NOTthin_litRange_longCRCrun.csv"),
+                 stringsAsFactors = FALSE) %>%
+  mutate(set="constrained range")
+gridSearchVals <- bind_rows(gridSearchVals_wide,
+                            gridSearchVals_constrained)
+
+gridSearchVals %>%
+  pivot_longer(-set, names_to = "parameter", values_to = "value") %>%
+  ggplot(aes(x=exp(value), fill=set))+
+  geom_histogram(bins=50)+
+  geom_vline(aes(xintercept=value, group=parameter), optim_params %>% filter(set %in% c("wide range","constrained range")), color="maroon")+
+  colorblindr::scale_fill_OkabeIto(order = c(7,8))+
+  facet_wrap(parameter~set, scales="free", ncol=4, labeller = label_wrap_gen(multi_line=FALSE)) +
+  theme_few()+
+  # labs(title="Histograms of wide-range parameter set",
+       # subtitle="Red line indicates maximum log likelihood values")+
+  theme(axis.title.x=element_blank(),
+        legend.position="none",
+        plot.margin = margin(0,1,0,0, "cm"))
+ggsave(here("figures/MS/FigureS5.histograms_parameter_maxlogliklihood.png"), dpi=600, width=11,height=8.5, units="in")
+
+````
