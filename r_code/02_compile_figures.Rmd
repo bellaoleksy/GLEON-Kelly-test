@@ -113,7 +113,8 @@ bella_metab_summary <- bella_metab_extendedSummer %>%
          GPP75=meanGPP+qnorm(0.75)*seGPP,
          GPP95=meanGPP+qnorm(0.95)*seGPP,
          perc_missing_days=(n_NAs/153)*100)%>% # calculate percentage of missing days. If > 50%, toss those lakes out
-  filter(!perc_missing_days>50)
+  filter(!perc_missing_days>50) %>%
+  mutate(perc_complete=100-perc_missing_days)
 ```
 
 #### Loads
