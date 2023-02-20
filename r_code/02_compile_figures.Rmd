@@ -8,6 +8,7 @@ editor_options:
 ---
 
 # Source libraries & metadata
+
 ```{r setup, include=FALSE}
 
 
@@ -28,9 +29,10 @@ source(here("r_code/scripts/librariesAndFunctions.R"))
 metadata<-read_csv(here("data/lakeMetadata_20230126.csv")) #found in error in the Kentucky lake SA
 ```
 
-
 # Import data
+
 ##### Metabolism
+
 ```{r load raw metab & metadata, include=FALSE}
 ####PULL IN METABOLISM DATA######
 source(here("r_code/scripts/dataPullMetab.R")) 
@@ -118,6 +120,7 @@ bella_metab_summary <- bella_metab_extendedSummer %>%
 ```
 
 #### Loads
+
 ```{r pull in load estimates, include=FALSE}
 #######PULL IN LOAD DATA########
 
@@ -240,6 +243,7 @@ master_df<-right_join(bella_metab_summary %>%
 ```
 
 #### Lake nutrients
+
 ```{r lake nutrient data, include=FALSE}
 
 
@@ -253,6 +257,7 @@ glimpse(master_df)
 glimpse(newts_full)
 
 master_df<- left_join(master_df, newts_full %>%
+                                    distinct(lakeName, .keep_all=TRUE) %>%
                                     select(lakeName, TP_ugL, TN_ugL, DOC_mgL,
                                            abs440, abs250, abs280, abs254, chla_ugL),
                       by="lakeName") %>%
@@ -275,8 +280,8 @@ master_df<- left_join(master_df, newts_full %>%
   distinct() #remove duplicate rows
 ```
 
-
 #### Hydrological classification
+
 ```{r}
 glimpse(master_df)
 master_df <- master_df %>%
@@ -344,6 +349,7 @@ master_df %>%
 #Potential figures
 
 ### Figure 1 - correleations among GPP, loads, zmix, nutrients, SA, volume
+
 ```{r}
 
 
@@ -673,76 +679,119 @@ all_compareVals <- bind_rows(compareVals,
                              compareVals2)
 
 ## This version includes only the calibration set (18 lakes)
+my_breaks = c(3,10,30,100)
 A <- compareVals %>%
   ggplot(aes(y=TPHat, x=TP))+
   geom_point(alpha=0.7, size=2.5)+
   theme_few()+
   geom_abline(intercept=0, slope=1)+
   scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
-  # scale_y_continuous(trans = log10_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Modeled lake TP (mg m'^-3,')')))+
-  # scale_x_continuous(trans = log10_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Mean lake TP (mg m'^-3,')')))
+  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(3,100))+
+  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(3,100))
 
 
-
+my_breaks = c(0.3,1,3,10,30)
 B  <- compareVals %>%
   ggplot(aes(y=CHat, x=DOC))+
   geom_point(alpha=0.7, size=2.5)+
   theme_few()+
   geom_abline(intercept=0, slope=1)+
   scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
-  # scale_y_continuous(trans = log10_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Modeled lake DOC (g m'^-3,')')))+
-  # scale_x_continuous(trans = log10_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Mean lake DOC (g m'^-3,')')))
+  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(0.3,30))+
+  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(0.3,30))
 
+my_breaks = c(1,3,10,30)
 C  <- compareVals %>%
   ggplot(aes(y=zMixHat, x=meanzMix))+
   geom_point(alpha=0.7, size=2.5)+
   theme_few()+
   geom_abline(intercept=0, slope=1)+
   scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))
-  # scale_y_continuous(trans = log10_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Modeled z'[mix],' (m)')))+
-  # scale_x_continuous(trans = log10_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Mean z'[mix],' (m)')))
+  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(1,30))+
+  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(1,30))
 
+my_breaks = c(30,100,300,1000,3000,10000)
 D  <-
   compareVals %>%
-  ggplot(aes(y=GPPHat, x=meanGPP))+
+  ggplot(aes(y=GPPHat, x=medianGPP))+
   geom_point(alpha=0.7, size=2.5)+
   theme_few()+
   geom_abline(intercept=0, slope=1)+
-  scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
-  # scale_y_continuous(trans = log2_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')))+
-  # scale_x_continuous(trans = log2_trans(),
-  #   breaks = trans_breaks("log10", function(x) 10^x),
-  #   labels = trans_format("log10", math_format(10^.x)),
-  #   name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')))
+  scale_x_log10(name = expression(paste('Median GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma,
+                breaks = my_breaks,
+                limits = c(30,10000))+
+  scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma,
+                breaks = my_breaks,
+                limits = c(30,10000))
 
 (A+B)/(C+D) + plot_annotation(tag_levels = 'A')
 
-ggsave(here("figures/MS/Fig2.modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600, width=8,height=8, units="in")
+ggsave(here("figures/MS/FigS3.modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600, width=8,height=8, units="in")
+
+#Test whether slopes are different from 0
+library(emmeans)
+fitTP <- lm(TPHat~TP, compareVals)
+fitTP
+TP.emt <- emtrends(fitTP, ~1, var="TP")
+TP.emt
+test(TP.emt, null=1)
+
+
+fitDOC <- lm(CHat~DOC, compareVals)
+fitDOC
+DOC.emt <- emtrends(fitDOC, ~1, var="DOC")
+DOC.emt
+test(DOC.emt, null=1)
+
+
+fitzMix <- lm(zMixHat~meanzMix, compareVals)
+fitzMix
+zMix.emt <- emtrends(fitzMix, ~1, var="meanzMix")
+zMix.emt
+test(zMix.emt, null=1)
+
+
+fitGPPmean <- lm(GPPHat~meanGPP, compareVals)
+fitGPPmean
+GPP.mean.emt <- emtrends(fitGPPmean, ~1, var="meanGPP")
+GPP.mean.emt
+test(GPP.mean.emt, null=1)
+
+fitGPPmed <- lm(GPPHat~medianGPP, compareVals)
+fitGPPmed
+GPP.med.emt <- emtrends(fitGPPmed, ~1, var="medianGPP")
+GPP.med.emt
+test(GPP.med.emt, null=1)
+
 
 
 ## RMSEs
@@ -760,6 +809,21 @@ Metrics::rmse(actual_GPP_mean,pred_GPP)
 
 #RMSE with MedianGPP
 Metrics::rmse(actual_GPP_median,pred_GPP)
+Metrics::smape(actual_GPP_median,pred_GPP) #Symmetiric Mean Absolute Percent Error
+#difference between smape and mape: https://towardsdatascience.com/choosing-the-correct-error-metric-mape-vs-smape-5328dec53fac
+
+#RMSE with TP
+Metrics::rmse(compareVals$TPHat,compareVals$TP)
+Metrics::mape(compareVals$TPHat,compareVals$TP) #Mean Absolute Percent Error
+
+#RMSE with DOC
+Metrics::rmse(compareVals$CHat,compareVals$DOC)
+Metrics::mape(compareVals$CHat,compareVals$DOC) #Mean Absolute Percent Error
+
+#RMSE with zMix
+Metrics::rmse(compareVals$zMixHat,compareVals$meanzMix)
+Metrics::mape(compareVals$zMixHat,compareVals$meanzMix) #Mean Absolute Percent Error
+
 
 
 
@@ -847,22 +911,44 @@ ggsave(here("figures/MS/Fig2.modeled_vs_measured_TP_DOC_zMIX_GPP_allLakes.png"),
 
 
 ## RMSEs
-GPP_vals <- all_compareVals %>% filter(set=="modeled") %>% select(GPPHat, meanGPP, medianGPP)
+test_set_vals <- all_compareVals %>% filter(set=="modeled") %>% select(GPPHat, meanGPP, medianGPP, meanzMix, zMixHat)
 
 #MeanGPP
-actual_GPP_mean <- GPP_vals$meanGPP
+actual_GPP_mean <- test_set_vals$meanGPP
 #MedianGPP
-actual_GPP_median <- GPP_vals$medianGPP
+actual_GPP_median <- test_set_vals$medianGPP
+pred_GPP <- test_set_vals$GPPHat
+#zMix
+actual_zmix <- test_set_vals$meanzMix
+pred_zmix <- test_set_vals$zMixHat
 
-pred_GPP <- GPP_vals$GPPHat
-
-#RMSE with MeanGPP
+#RMSE of MeanGPP
 Metrics::rmse(actual_GPP_mean,pred_GPP)
 
-#RMSE with MedianGPP
+#RMSE of MedianGPP
 Metrics::rmse(actual_GPP_median,pred_GPP)
 
+#RMSE of zmix
+Metrics::rmse(actual_zmix,pred_zmix)
 
+fitzMix <- lm(zMixHat~meanzMix, test_set_vals)
+fitzMix
+zMix.emt <- emtrends(fitzMix, ~1, var="meanzMix")
+zMix.emt
+test(zMix.emt, null=1)
+
+
+fitGPPmean <- lm(GPPHat~meanGPP, test_set_vals)
+fitGPPmean
+GPP.mean.emt <- emtrends(fitGPPmean, ~1, var="meanGPP")
+GPP.mean.emt
+test(GPP.mean.emt, null=1)
+
+fitGPPmed <- lm(GPPHat~medianGPP, test_set_vals)
+fitGPPmed
+GPP.med.emt <- emtrends(fitGPPmed, ~1, var="medianGPP")
+GPP.med.emt
+test(GPP.med.emt, null=1)
 
 ```
 
@@ -1006,7 +1092,9 @@ ggsave(here("figures/MS/FigureS7.GPP_residuals.png"), dpi=600, width=6,height=8,
 
 
 ```
-### Figure 3 & S5, S6 - TP vs DOC as a ftn of GPP 
+
+### Figure 3 & S5, S6 - TP vs DOC as a ftn of GPP
+
 ```{r}
 
 #How do DOClake and DOCin vary? Same for TP?
@@ -1167,11 +1255,10 @@ ggsave(here("figures/MS/FigureS6.GPPvsDOC_2panel.png"), width=8, height=4,units=
 
 ```
 
-
-
 ### Figure 4. Parameters & Figure S6.
 
 Create the skeleton for an eventual figure that shows the updated parameters and ranges
+
 ```{r}
 lit_params <- read.csv("~/Google Drive/My Drive/Collaborations/(1) Kelly Model Test/Data/Data repository/ParameterEstimatesLiterature.csv") %>%
   select(-description, -sources) %>%
@@ -1353,38 +1440,37 @@ optim_params %>%
 ggsave(here("figures/MS/FigureS6.point_plots_kelly_optim_lit_parameter_ranges.png"), dpi=600, width=7,height=3.5, units="in")
 ```
 
-
-
 ### Table 1 - lake metadata
+
 ```{r}
 
 #morphometry and nutrient dataframe
 morphNut<-master_df%>%
-  select(lakeName, SA_ha, HRT_days, V_m3, zMean, DOC_mgL, TP_ugL, DOC_load_kg, TP_load_kg) %>%
-  mutate(CP=DOC_load_kg/(TP_load_kg*1000),
-         volume_1000m3=V_m3/1000)%>%
-  select(-V_m3) %>%
+  select(lakeName, SA_ha, HRT_days, V, zMean, DOC_mgL, TP_ugL) %>%
+  mutate(volume_1000000m3=V/1000000,
+         HRT_years=HRT_days/365)%>%
+  select(-V, -HRT_days) %>%
   left_join(.,metadata %>%
                 select(lakeName, `Latitude (decimal degrees)`, `Longitude (decimal degrees)`)) %>%
   mutate(across(where(is.numeric), round, 2)) #round all numeric values to 2 decimal places
-str(morphNut)
+
 #metab dataframe
 metab<-bella_metab_withMetaData_extendedSummer %>%
   group_by(lakeName)%>%
   skim()%>%
   filter(skim_type=="numeric") %>%
   filter(skim_variable %in% c("GPP_mgCm2", "zMix")) %>%
-  select(skim_variable, lakeName, numeric.mean, numeric.sd) %>%
+  select(skim_variable, lakeName, numeric.p50, numeric.sd) %>%
   # mutate(
   #   numeric.mean=round(numeric.mean,0),
   #   numeric.sd=round(numeric.sd,1),
   #   meansd = paste0(numeric.mean, " (",numeric.sd,")")) %>%
   # select(-numeric.mean,-numeric.sd) %>%
     mutate(
-    numeric.mean=round(numeric.mean,0)) %>%
+    numeric.p50=round(numeric.p50,0)) %>%
   select(-numeric.sd) %>%
-  pivot_wider(names_from = "skim_variable", values_from = "numeric.mean")
-
+  pivot_wider(names_from = "skim_variable", values_from = "numeric.p50") %>%
+  filter(lakeName %in% morphNut$lakeName)  
 
 ###EXPORT TABLE
 summary_table_export <- 
@@ -1395,14 +1481,14 @@ summary_table_export <-
   relocate(`Longitude (decimal degrees)`, .after = `Latitude (decimal degrees)`)%>%
   rename(`Lake name`=lakeName,
          `SA (ha)`=SA_ha,
-         `HRT (days)`=HRT_days,
-         `V (1000 m3)`=volume_1000m3,
+         `HRT (years)`=HRT_years,
+         `V (1000000 m3)`=volume_1000000m3,
          `Mean depth (m)`=zMean,
-         `DOC (mg/L)`=DOC_mgL,
-         `TP (ug/L)`= TP_ugL,
-         `DOC load (kg)`=DOC_load_kg,
-         `TP load (kg)`=TP_load_kg,
-         `Inflow C:P`=CP,
+         `DOC (g m-3)`=DOC_mgL,
+         `TP (mg m-3)`= TP_ugL,
+         # `DOC load (kg)`=DOC_load_kg,
+         # `TP load (kg)`=TP_load_kg,
+         # `Inflow C:P`=CP,
          `GPP (mg C m2 day)`=GPP_mgCm2,
          `Mixed layer depth (m)`=zMix)%>%
   add_colnames() %>%
@@ -1411,19 +1497,20 @@ summary_table_export <-
                GPP = gross primary production") %>%
   set_bold(row = 1, col = everywhere, value = TRUE) %>% 
   set_all_borders(TRUE) %>%
-    set_all_padding(0) %>%
+  set_all_padding(0) %>%
   set_outer_padding(0) %>%
   theme_article()
 # 
 # summary_table_export<-summary_table_export %>%
 #   set_all_padding(0) %>%
 #   set_outer_padding(0) 
-
-quick_docx(summary_table_export, file = 'results/draft MS figs/tables/Table1.docx')
-
-
-library(flextable)
 library(officer)
+library(flextable)
+huxtable::quick_docx(summary_table_export, file = 'Figures/MS/TableS1.docx')
+
+
+
+
 ft <- as_flextable(summary_table_export) 
 
 summary_table_export<-regulartable(summary_table_export) %>% 
@@ -1448,8 +1535,8 @@ save_as_docx(summary_table_export, pr_section = sect_properties,
 
 ```
 
-
 ### Fig2- lake and stream nutrients
+
 ```{r}
 FigX_lake_and_load_conc<-master_df %>%
   ggplot(aes(x=DOC_mgL, y=TP_ugL,
@@ -1509,6 +1596,7 @@ ggsave(here("results/draft MS figs/lakeAndLoadConcentrations.png"), width=10, he
 ```
 
 ##### SIL nutrient & load figs
+
 ```{r}
 
 
@@ -1591,8 +1679,8 @@ ggsave(here("figures/SIL/TPvsDOC_loads.png"), width=7, height=5,units="in", dpi=
 
 ```
 
-
 #### Supp Fig- transformations C:P
+
 ```{r}
 #Paired points -- how does Stream C:P compare to Lake C:P?
 
@@ -1680,6 +1768,7 @@ master_df %>%
 ```
 
 #### Linear models
+
 ```{r}
 GPP_linearmodels<-
 #Modeled GPP
@@ -1728,7 +1817,8 @@ GPP_linearmodels
 
 ```
 
-#### ~SIL figures
+#### \~SIL figures
+
 ```{r}
 
 
@@ -1837,6 +1927,7 @@ ggsave(here("figures/SIL/correlationsWithGPP_measured_only.png"), width=9, heigh
 ```
 
 #### PCA?
+
 ```{r}
 
 
@@ -1946,8 +2037,8 @@ pca_fit %>%
   )
 ```
 
-
 ### Fig4- GPP versus DOC
+
 ```{r}
 MeanGPPvDOCvloadCP<-master_df %>%
   filter(!lakeName=="Annie")%>%
@@ -2060,6 +2151,7 @@ ggsave(here("figures/GLEON/GPPversusDOC_FnOfCPandSA.png"), width=12, height=6,un
 ```
 
 ### Figure 5 - Obs vs pred
+
 ```{r}
 
 #PREDICTED VS OBSERVED
@@ -2174,7 +2266,6 @@ ggsave(here("results/draft MS figs/Fig5.predVSmeasuredGPP-DOC-TP-zMix.png"), wid
 
 ```
 
-
 ### SUPP FIGS
 
 #### Figure S1. Maps
@@ -2269,6 +2360,7 @@ density_plot<-master_df %>%
 ```
 
 ##### SIL maps & violin plots
+
 ```{r}
 
 
@@ -2574,8 +2666,8 @@ ggsave(here("figures/MS/FigureS1.studymap.png"), width=8, height=8,units="in", d
 
 ```
 
-
 #### Figure S2. Daily metab
+
 ```{r, out.width = '100%',fig.height=15}
 
 ## Plot A - boxplots
@@ -2658,7 +2750,6 @@ ggsave(here("figures/MS/FigureS2.boxplot_and_dailyGPP.png"), width=11, height=8.
 
 
 ```
-
 
 #### Figure S3. Measured vs. modeled loads
 
@@ -2853,7 +2944,6 @@ ggsave(here("figures/modeled_vs_measured_CtoP_18lakes.png"), dpi=600, width=5,he
 
 ```
 
-
 #### Figure S4. Pred vs Obs params for 18 calibration lakes using original Kelly model estimates
 
 ```{r}
@@ -3003,6 +3093,7 @@ ggsave(here("figures/MS/Fig2.modeled_vs_measured_TP_DOC_zMIX_GPP_allLakes.png"),
 ```
 
 #### Figure S6. Parameter histograms
+
 ```{r}
 
 #Histograms of all the parameters
