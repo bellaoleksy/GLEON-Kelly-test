@@ -202,7 +202,8 @@ catchment_newtz<- read.delim('~/Google Drive/My Drive/Research (common)/Research
          lakeID = replace(lakeID, lakeName=="Mangstrettjarn", 'MANG'),
          lakeID = replace(lakeID, lakeName=="Mendota", 'MEN'),
          lakeID = replace(lakeID, lakeName=="Trout", 'TROUT'),
-         lakeName = replace(lakeName, lakeName=="Lilli", 'Lillinonah'))  ## renaming for joining purposes
+         lakeName = replace(lakeName, lakeName=="Lilli", 'Lillinonah'),
+         DOC_mgL = replace(DOC_mgL, lakeName=="Lillinonah", 4.21))  ## renaming for joining purposes
 glimpse(catchment_newtz)
 
 
@@ -437,7 +438,8 @@ p1nuts <- read.delim(here("data/metab_data_raw/Prairie1/P1_nutrient.txt")) %>%
   rename(abs254=UV.254nm) %>% 
   group_by(lakeID, lakeName)%>%
   summarize_at(vars(DOC_mgL:abs254), mean, na.rm=TRUE) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(TP_ugL=35)    # mg SRP m-3, value from literature
 str(p1nuts)
 
 # ~P8 nuts -------------------------------------------------
@@ -452,7 +454,8 @@ p8nuts <- read.delim(here("data/metab_data_raw/Prairie8/P8_nutrient.txt")) %>%
   rename(abs254=UV.254nm) %>% 
   group_by(lakeID, lakeName)%>%
   summarize_at(vars(DOC_mgL:abs254), mean, na.rm=TRUE) %>%
-  ungroup()
+  ungroup()%>%
+  mutate(TP_ugL=30)    # mg SRP m-3, value from literature
 str(p8nuts)
 
 
@@ -569,7 +572,11 @@ lochvalenuts <- lochvalenuts %>%
 
 
 
-# ~Castle nuts (NEED) --------------------------------------------------------------
+# ~Castle nuts --------------------------------------------------------------
+castlenuts <- data.frame(lakeName="Castle",
+                         DOC_mgL= 7.68,  
+                         TP_ugL= 4.3) 
+#Values from literature
 
 # ~Almberga nuts  --------------------------------------------------------------
 
@@ -582,7 +589,8 @@ almberganuts <- read.delim(here("data/metab_data_raw/Almberga/Almberga_nutrient.
          abs440=a440) %>% 
   select(lakeName, DOC_mgL, TN_ugL, NO3_ugL_N) %>%
   group_by(lakeName)%>%
-  summarize_at(vars(DOC_mgL:NO3_ugL_N), mean, na.rm=TRUE)
+  summarize_at(vars(DOC_mgL:NO3_ugL_N), mean, na.rm=TRUE) %>%
+  mutate(TP_ugL=5) #value from literature
 str(almberganuts)
 # ~Erken nuts --------------------------------------------------------------
 erkennuts <- read.delim(here("data/metab_data_raw/Erken/Erken_LakeChem2018.txt")) %>%
@@ -693,7 +701,7 @@ glimpse(solomonLakeData_nuts)
 # Compile nutrient data ---------------------------------------------------
 
 newts_full<-bind_rows(UNDERCnewts,oneidanuts,
-                      catchment_newtz,jordannuts,yylnuts,utahnuts,
+                      catchment_newtz,jordannuts,yylnuts,utahnuts,castlenuts,
                       Barcnuts,Prlanuts,Prlonuts,erkennuts,meugnuts,p1nuts,
                       p8nuts,tauponuts, lochvalenuts, SUGGnuts,Lironuts,
                       solomonLakeData_nuts, almberganuts, erkennuts,
