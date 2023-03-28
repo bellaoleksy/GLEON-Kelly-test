@@ -880,101 +880,6 @@ compareVals2 <- left_join(predVals_outOfSample,obsVals %>%
 all_compareVals <- bind_rows(compareVals,
                              compareVals2)
 
-# predVals<-read.csv(here("data/preliminaryMetropolisResults/ExtendedRangeParameter_outputWobservedloads.csv")) 
-# obsVals<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_wphyto4bella.csv")) 
-# predVals_outOfSample<-read.csv(here("data/preliminaryMetropolisResults/ExtendedRangeParameter_outputWestimatedloads.csv")) 
-# obsVals_outOfSample<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_unmodeledInfoLakes4bella.csv")) 
-# 
-# compareVals<-left_join(predVals,obsVals %>%
-#                          select(lakeName, TP, DOC, meanzMix, medianGPP, meanGPP)) %>%
-#   mutate(set="calibration")
-# compareVals2 <- left_join(predVals_outOfSample,obsVals_outOfSample %>%
-#                             select(lakeName, TP, DOC, meanzMix, medianGPP, meanGPP)) %>%
-#   mutate(set="modeled") %>%
-#   filter(!lakeName %in% compareVals$lakeName)
-# 
-# all_compareVals <- bind_rows(compareVals,
-#                              compareVals2)
-
-## This version includes only the calibration set (18 lakes)
-my_breaks = c(3,10,30,100)
-A <- compareVals %>%
-  ggplot(aes(y=TPHat, x=TP))+
-  geom_point(alpha=0.7, size=2.5)+
-  theme_few()+
-  geom_abline(intercept=0, slope=1)+
-  # scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  # scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
-  scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(3,100))+
-  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(3,100))
-
-
-my_breaks = c(0.3,1,3,10,30)
-B  <- compareVals %>%
-  ggplot(aes(y=CHat, x=DOC))+
-  geom_point(alpha=0.7, size=2.5)+
-  theme_few()+
-  geom_abline(intercept=0, slope=1)+
-  # scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  # scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
-  scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(0.3,30))+
-  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(0.3,30))
-
-my_breaks = c(1,3,10,30)
-C  <- compareVals %>%
-  ggplot(aes(y=zMixHat, x=meanzMix))+
-  geom_point(alpha=0.7, size=2.5)+
-  theme_few()+
-  geom_abline(intercept=0, slope=1)+
-  # scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  # scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
-  scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(1,30))+
-  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(1,30))
-
-my_breaks = c(30,100,300,1000,3000,10000)
-D  <-
-  compareVals %>%
-  ggplot(aes(y=GPPHat, x=medianGPP))+
-  geom_point(alpha=0.7, size=2.5)+
-  theme_few()+
-  geom_abline(intercept=0, slope=1)+
-  # scale_x_log10(name = expression(paste('Median GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  # scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
-  scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma,
-                breaks = my_breaks,
-                limits = c(30,10000))+
-  scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma,
-                breaks = my_breaks,
-                limits = c(30,10000))
-
-(A+B)/(C+D) + plot_annotation(tag_levels = 'A')
-
-ggsave(here("figures/MS/FigS3.modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600, width=8,height=8, units="in")
-
 #Test whether slopes are different from 0
 library(emmeans)
 fitTP <- lm(TPHat~TP, compareVals)
@@ -1036,20 +941,167 @@ Metrics::smape(actual_GPP_median,pred_GPP) #Symmetiric Mean Absolute Percent Err
 
 #RMSE with TP
 Metrics::rmse(compareVals$TPHat,compareVals$TP)
-Metrics::mape(compareVals$TPHat,compareVals$TP) #Mean Absolute Percent Error
+Metrics::smape(compareVals$TPHat,compareVals$TP) #Mean Absolute Percent Error
 
 #RMSE with DOC
 Metrics::rmse(compareVals$CHat,compareVals$DOC)
-Metrics::mape(compareVals$CHat,compareVals$DOC) #Mean Absolute Percent Error
+Metrics::smape(compareVals$CHat,compareVals$DOC) #Mean Absolute Percent Error
 
 #RMSE with zMix
 Metrics::rmse(compareVals$zMixHat,compareVals$meanzMix)
-Metrics::mape(compareVals$zMixHat,compareVals$meanzMix) #Mean Absolute Percent Error
+Metrics::smape(compareVals$zMixHat,compareVals$meanzMix) #Mean Absolute Percent Error
 
+
+
+
+## This version includes only the calibration set (18 lakes)
+my_breaks = c(3,10,30,100)
+A <- compareVals %>%
+  ggplot(aes(y=TPHat, x=TP))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  # scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  # scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(3,100))+
+  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(3,100))+
+  ggpp::geom_label_npc(aes(npcx = "left", npcy = "top",
+                           label = paste("RMSE =",round(Metrics::rmse(compareVals$TPHat,compareVals$TP),1))),
+                 size=3, alpha=0.5)
+
+
+
+my_breaks = c(0.3,1,3,10,30)
+B  <- compareVals %>%
+  ggplot(aes(y=CHat, x=DOC))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  # scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  # scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(0.3,30))+
+  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(0.3,30))+
+  ggpp::geom_label_npc(aes(npcx = "left", npcy = "top",
+                           label = paste("RMSE =",round(Metrics::rmse(compareVals$CHat,compareVals$DOC),1))),
+                 size=3, alpha=0.5)
+
+my_breaks = c(1,3,10,30)
+C  <- compareVals %>%
+  ggplot(aes(y=zMixHat, x=meanzMix))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  # scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  # scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(1,30))+
+  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),
+                labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(1,30))+
+  ggpp::geom_label_npc(aes(npcx = "left", npcy = "top",
+                           label = paste("RMSE =",round(Metrics::rmse(compareVals$zMixHat,compareVals$meanzMix),1))),
+                 size=3, alpha=0.5)
+
+my_breaks = c(30,100,300,1000,3000,10000)
+D  <-
+  compareVals %>%
+  ggplot(aes(y=GPPHat, x=medianGPP))+
+  geom_point(alpha=0.7, size=2.5)+
+  theme_few()+
+  geom_abline(intercept=0, slope=1)+
+  # scale_x_log10(name = expression(paste('Median GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  # scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
+  geom_smooth(method="lm",se=F,linetype="dashed",size=0.5)+
+  scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma,
+                breaks = my_breaks,
+                limits = c(30,10000)
+                )+
+  scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma,
+                breaks = my_breaks,
+                limits = c(30,10000)
+                )+
+  ggpp::geom_label_npc(aes(npcx = "left", npcy = "top",
+                           label = paste("RMSE =",round(Metrics::rmse(actual_GPP_median,pred_GPP),1))),
+                 size=3, alpha=0.5)
+
+(A+B)/(C+D) + plot_annotation(tag_levels = 'A')
+
+ggsave(here("figures/MS/FigS3.modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600, width=8,height=8, units="in")
 
 
 
 ## This version includes all of the lakes 
+## RMSEs
+test_set_vals <- all_compareVals %>% filter(set=="modeled") %>% select(GPPHat, meanGPP, medianGPP, meanzMix, zMixHat,
+                                                                       TPHat, TP, CHat, DOC)
+
+#MeanGPP
+actual_GPP_mean <- test_set_vals$meanGPP
+#MedianGPP
+actual_GPP_median <- test_set_vals$medianGPP
+pred_GPP <- test_set_vals$GPPHat
+#zMix
+actual_zmix <- test_set_vals$meanzMix
+pred_zmix <- test_set_vals$zMixHat
+
+#RMSE of MeanGPP
+Metrics::rmse(actual_GPP_mean,pred_GPP)
+
+#RMSE of MedianGPP
+Metrics::rmse(actual_GPP_median,pred_GPP)
+Metrics::smape(actual_GPP_median,pred_GPP) #Symmetiric Mean Absolute Percent Error
+
+
+#RMSE of zmix
+Metrics::rmse(actual_zmix,pred_zmix)
+
+
+
+fitzMix <- lm(zMixHat~meanzMix, test_set_vals)
+summary(fitzMix)
+confint(fitzMix)
+
+zMix.emt <- emtrends(fitzMix, ~1, var="meanzMix")
+zMix.emt
+test(zMix.emt, null=1)
+
+
+fitGPPmean <- lm(GPPHat~meanGPP, test_set_vals)
+fitGPPmean
+GPP.mean.emt <- emtrends(fitGPPmean, ~1, var="meanGPP")
+GPP.mean.emt
+test(GPP.mean.emt, null=1)
+
+fitGPPmed <- lm(GPPHat~medianGPP, test_set_vals)
+summary(fitGPPmed)
+confint(fitGPPmed)
+GPP.med.emt <- emtrends(fitGPPmed, ~1, var="medianGPP")
+GPP.med.emt
+test(GPP.med.emt, null=1)
+
+
+
+
 my_breaks = c(3,10,30,100)
 A <- all_compareVals %>%
   ggplot(aes(y=TPHat, x=TP, fill=set))+
@@ -1065,8 +1117,7 @@ A <- all_compareVals %>%
                 labels = my_breaks,
                 breaks = my_breaks,
                 limits = c(3,100))
-  # scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  # scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
+
 
 my_breaks = c(0.3,1,3,10,30)
 B  <- all_compareVals %>%
@@ -1100,9 +1151,10 @@ C  <- all_compareVals %>%
   scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),
                 labels = my_breaks,
                 breaks = my_breaks,
-                limits = c(1,30))
-  # scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  # scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),labels = scales::comma, breaks_log(n = 5, base = 10))
+                limits = c(1,30))+
+  ggpp::geom_label_npc(aes(npcx = "left", npcy = "top",
+                           label = paste("RMSE =",round(Metrics::rmse(actual_zmix,pred_zmix),1))),
+                 size=3, alpha=0.5)
 
 my_breaks = c(30,100,300,1000,3000,10000)
 D  <-
@@ -1119,9 +1171,10 @@ D  <-
   scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),
                 labels = scales::comma,
                 breaks = my_breaks,
-                limits = c(30,12000))
-  # scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))+
-  # scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),labels = scales::comma, breaks_log(n = 5, base = 10))
+                limits = c(30,12000))+
+  ggpp::geom_label_npc(aes(npcx = "left", npcy = "top",
+                           label = paste("RMSE =",round(Metrics::rmse(actual_GPP_median,pred_GPP),1))),
+                 size=3, alpha=0.5)
 
 
 combined <- (A+B)/(C+D) & theme(legend.position="bottom",
@@ -1135,50 +1188,6 @@ combined +  plot_annotation(tag_levels = 'A') +
 ggsave(here("figures/MS/Figure3.modeled_vs_measured_TP_DOC_zMIX_GPP_allLakes.png"), dpi=600, width=8,height=8, units="in")
 
 
-## RMSEs
-test_set_vals <- all_compareVals %>% filter(set=="modeled") %>% select(GPPHat, meanGPP, medianGPP, meanzMix, zMixHat)
-
-#MeanGPP
-actual_GPP_mean <- test_set_vals$meanGPP
-#MedianGPP
-actual_GPP_median <- test_set_vals$medianGPP
-pred_GPP <- test_set_vals$GPPHat
-#zMix
-actual_zmix <- test_set_vals$meanzMix
-pred_zmix <- test_set_vals$zMixHat
-
-#RMSE of MeanGPP
-Metrics::rmse(actual_GPP_mean,pred_GPP)
-
-#RMSE of MedianGPP
-Metrics::rmse(actual_GPP_median,pred_GPP)
-Metrics::smape(actual_GPP_median,pred_GPP) #Symmetiric Mean Absolute Percent Error
-
-
-#RMSE of zmix
-Metrics::rmse(actual_zmix,pred_zmix)
-
-fitzMix <- lm(zMixHat~meanzMix, test_set_vals)
-summary(fitzMix)
-confint(fitzMix)
-
-zMix.emt <- emtrends(fitzMix, ~1, var="meanzMix")
-zMix.emt
-test(zMix.emt, null=1)
-
-
-fitGPPmean <- lm(GPPHat~meanGPP, test_set_vals)
-fitGPPmean
-GPP.mean.emt <- emtrends(fitGPPmean, ~1, var="meanGPP")
-GPP.mean.emt
-test(GPP.mean.emt, null=1)
-
-fitGPPmed <- lm(GPPHat~medianGPP, test_set_vals)
-summary(fitGPPmed)
-confint(fitGPPmed)
-GPP.med.emt <- emtrends(fitGPPmed, ~1, var="medianGPP")
-GPP.med.emt
-test(GPP.med.emt, null=1)
 
 ```
 
@@ -1397,198 +1406,6 @@ ggsave(here("figures/MS/Figure4.point_plots_kelly_optim_lit_parameter_ranges.png
 
 ```
 
-#### Figure 4 alt - relative changes
-```{r}
-lit_params <- read.csv("~/Google Drive/My Drive/Collaborations/(1) Kelly Model Test/Data/Data repository/ParameterEstimatesLiterature.csv") %>%
-  select(-description, -sources) %>%
-  mutate(set="literature") %>% #call this kelly for now so we have the kelly values map onto the literature range
-         # value=(min+max)/2) %>%
-  rename(low=min,
-         high=max)
-  # pivot_longer(2:3)
-
-
-#First calculate the 95% confidence intervals from the Metroplis "wide range"
-gridSearchVals<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_wideRange_longCRCrun.csv"),
-                 stringsAsFactors = FALSE) 
-
-#Quick ftns for getting 10th and 90th quantiles.
-#Tried 5 and 95th but there are some extreme outliers that made the plots look weird
-quant_10 <- function(x)  {
-  quantile(x, probs = 0.05)
-}
-
-quant_90 <- function(x)  {
-  quantile(x, probs = 0.95)
-}
-
-
-
-#Summarize 10th and 90th quantile for each parameter
-gridSearchQuantiles_wideRange <-
-  gridSearchVals %>%
-  summarise_all(list(quant_90=~quant_90(.), quant_10=~quant_10(.))) %>%
-  pivot_longer(cols=everything(),
-               names_prefix = c("_quant_95","_quant_5"),
-               names_sep = "_quant_",
-               names_to = c("parameter","quantile")) %>% 
-  pivot_wider(id_cols=parameter,
-              names_from=quantile,
-              values_from=value) %>%
-  rename(high=`90`,
-         low=`10`) %>%
-  mutate(high=exp(high), #exponentiate since values were on log scale
-         low=exp(low)) %>%
-  mutate(set="wide range")
-
-params<-read.csv(here("data/preliminaryMetropolisResults/kellymodel_parametersets4bella.csv"),
-                 stringsAsFactors = FALSE) %>%
-  rename(set=X)
-
-
-#First calculate the 95% confidence intervals from the Metroplis "wide range"
-gridSearchVals<-read.csv(here("data/preliminaryMetropolisResults/goodChainBI_NOTthin_litRange_longCRCrun.csv"),
-                 stringsAsFactors = FALSE) 
-
-
-
-
-#Summarize 10th and 90th quantile for each parameter
-gridSearchQuantiles_litRange <-
-  gridSearchVals %>%
-  summarise_all(list(quant_90=~quant_90(.), quant_10=~quant_10(.))) %>%
-  pivot_longer(cols=everything(),
-               names_prefix = c("_quant_95","_quant_5"),
-               names_sep = "_quant_",
-               names_to = c("parameter","quantile")) %>% 
-  pivot_wider(id_cols=parameter,
-              names_from=quantile,
-              values_from=value) %>%
-  rename(high=`90`,
-         low=`10`) %>%
-  mutate(high=exp(high), #exponentiate since values were on log scale
-         low=exp(low)) %>%
-  mutate(set="constrained range")
-
-#Combine
-gridSearchQuantiles <- bind_rows(gridSearchQuantiles_litRange,
-                                 gridSearchQuantiles_wideRange)
-
-
-
-params<-read.csv(here("data/preliminaryMetropolisResults/kellymodel_parametersets4bella.csv"),
-                 stringsAsFactors = FALSE) %>%
-  rename(set=X)
-
-
-#Grab just the maximum log likelihood from the 'wide range' Metropolis run
-paramSetLong <- params %>%
-  # filter(set=="max log likelihood wide") %>%
-  # select(-set) %>%
-  pivot_longer(pA:rec, names_to="parameter", values_to="value") 
-
-#Separate them, then recombine after rename the set
-kellySet <- paramSetLong %>%
-  filter(set=="kelly")
-
-wideSet <- paramSetLong %>%
-  filter(set=="max log likelihood wide") %>%
-  # rename(max_likelihood=value) %>%
-  mutate(set="wide range")
-
-constrainedSet <- paramSetLong %>%
-  filter(set=="max log likelihood narrow not thinned") %>%
-  # rename(max_likelihood=value) %>%
-  mutate(set="constrained range")
-
-maxLikelihoodSet <- bind_rows(kellySet,
-                          wideSet,
-                          constrainedSet)
-
-#Join with the 5th and 95th quantile dataframe
-optim_params <- full_join(gridSearchQuantiles,maxLikelihoodSet) %>%
-  full_join(., lit_params)
-
-
-# Parameter comparison plots (lit range, kelly, and best optim) - SCALED values
-optim_params %>%
-  pivot_longer(cols=c(low, high,value), names_to="name", values_to="value") %>%
-  filter(!set=="constrained range") %>%
-  mutate(set=factor(set,
-                    levels=c("kelly",
-                             "literature",
-                             # "constrained range",
-                             "wide range"),
-                    labels=c("original model",
-                             "literature range",
-                             # "Metrop. constrained",
-                             "Metrop. full range"))) %>%
-  left_join(., kellySet %>% select(-set) %>% rename(kelly_param=value)) %>%
-  group_by(parameter) %>%
-  mutate(scale_value=(value-kelly_param)/sd(value, na.rm=TRUE)) %>%
-  # mutate(scale_value=scale(value),
-  #        scale_value=scale(value),
-  #        scale_value=scale(value)) %>%
-  select(-value) %>%
-  pivot_wider(names_from="name", values_from = "scale_value") %>%
-  ggplot(aes(x=set, y=value, group=set, fill=set, color=set)) + 
-  geom_errorbar(aes(ymin=low, ymax=high), width=.5,
-                 position=position_dodge(.9)) +
-  geom_point(color="black", shape=21)+
-  colorblindr::scale_fill_OkabeIto(order = c(1,2,6),
-                                   name="Legend:")+
-  colorblindr::scale_color_OkabeIto(order = c(1,2,6),
-                                    name="Legend:")+
-  # scale_color_manual(values=c("black","purple","blue","orange"))+
-  facet_wrap(~parameter,ncol=5) +
-  theme_few()+
-  # theme_pubr(border=TRUE)+
-  theme(legend.position="bottom",
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        axis.title.x=element_blank(),
-        panel.spacing=unit(0, "lines"),
-        legend.margin = margin(0, 0, 0, 0))+
-  labs(y="Scaled parameter value")
-ggsave(here("figures/MS/Figure4.point_plots_kelly_optim_lit_parameter_ranges_SCALED.png"), dpi=600, width=7,height=3.5, units="in")
-
-
-
-# Parameter comparison plots (all parameter sets) for supplement
-optim_params %>%
-  pivot_longer(cols=value, names_to="name", values_to="value") %>%
-  select(-name) %>%
-  mutate(set=factor(set,
-                    levels=c("kelly",
-                             "literature",
-                             "constrained range",
-                             "wide range"),
-                    labels=c("original model",
-                             "literature range",
-                             "Metrop. constrained",
-                             "Metrop. full range"))) %>%
-  # filter(!set=="constrained range") %>%
-  ggplot(aes(x=set, y=value, group=set, fill=set, color=set)) + 
-  geom_errorbar(aes(ymin=low, ymax=high), width=.5,
-                 position=position_dodge(.9)) +
-  geom_point(color="black", shape=21)+
-  colorblindr::scale_fill_OkabeIto(order = c(1,2,4,6),
-                                   name="Legend:")+
-  colorblindr::scale_color_OkabeIto(order = c(1,2,4,6),
-                                    name="Legend:")+
-  # scale_color_manual(values=c("black","purple","blue","orange"))+
-  facet_wrap(~parameter, scales="free", ncol=5) +
-  theme_few()+
-  theme(legend.position="bottom",
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        axis.title.x=element_blank(),
-        legend.margin = margin(0, 0, 0, 0))+
-  labs(y="Parameter value")
-ggsave(here("figures/MS/FigureS6.point_plots_kelly_optim_lit_parameter_ranges.png"), dpi=600, width=7,height=3.5, units="in")
-```
-
-
 ### Table 1 - lake metadata
 
 ```{r}
@@ -1684,65 +1501,6 @@ save_as_docx(summary_table_export, pr_section = sect_properties,
 
 ```
 
-### Fig2- lake and stream nutrients
-
-```{r}
-FigX_lake_and_load_conc<-master_df %>%
-  ggplot(aes(x=DOC_mgL, y=TP_ugL,
-             # fill=DOC_mgL/(TP_ugL),
-             ))+
-  geom_point(shape=21, size=3, color="black", fill="grey50")+
-  # geom_abline(intercept = 0, slope = 1)+
-  ylab(expression('Mean lake TP ug L'^-1))+
-  xlab(expression(paste('Mean lake DOC mg L'^-1,)))+
-  # scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
-  #                                  name="Lake DOC:TP\n(mass:mass)")+
-  theme_classic()+
-    theme(legend.position = c(0.02, 0.89),
-        legend.justification = c("left", "bottom"),
-        legend.box.just = "right",
-        legend.title.align = 0,
-        legend.direction = "horizontal",
-        legend.box = "horizontal",
-        legend.background = element_blank(),
-        legend.margin = margin(0, 0, 0, 0),
-        legend.title = element_text(size=10))+
-
-master_df %>%
-  filter(!dataset=="NA")%>%
-  ggplot(aes(x=log10(DOC_load_kg), y=log10(TP_load_kg),
-             # fill=DOC_load_kgday_mean/(TP_load_kgday_mean*1000),
-             shape=dataset))+
-  geom_point( size=3, color="black", fill="grey20")+
-  scale_shape_manual(values=c(21,25),
-                     name="Inflow estimates:")+
-  # geom_abline(intercept = 0, slope = 1)+
-  ylab(expression('Mean TP load kg day'^-1))+
-  xlab(expression(paste('Mean DOC load kg day'^-1,)))+
-  # scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
-  #                                  name="Load DOC:TP\n(mass:mass)")+
-  # annotate(geom="text",x=0.0001, y=150, label="n=17",
-  #             color="black")+
-  theme_classic()+
-    geom_text_repel(aes(label = lakeName), size = 3)+
-  #Moves legend to inside of plot
-  theme(legend.position = c(0.05, 0.79),
-        legend.justification = c("left", "bottom"),
-        legend.box.just = "right",
-        legend.title.align = 0,
-        legend.direction = "vertical",
-        legend.box = "vertical",
-        legend.background = element_blank(),
-        legend.margin = margin(0, 0, 0, 0),
-        legend.title = element_text(size=10)) +
- plot_annotation(tag_levels = 'A')
-
-FigX_lake_and_load_conc
-ggsave(here("results/draft MS figs/lakeAndLoadConcentrations.png"), width=10, height=5,units="in", dpi=600)
-
-
-
-```
 
 ##### SIL nutrient & load figs
 
@@ -2299,121 +2057,6 @@ ggsave(here("figures/GLEON/GPPversusDOC_FnOfCPandSA.png"), width=12, height=6,un
 
 ```
 
-### Figure 5 - Obs vs pred
-
-```{r}
-
-#PREDICTED VS OBSERVED
-A<-master_df %>%
-  left_join(., preds_full,  by="lakeName") %>%
-    left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  filter(!dataset=='NA')%>%
-  ggplot(aes(y=medianGPP, x=PPareal, fill=dataset, shape=inflows_YN))+
-  geom_point(size=3, alpha=0.8)+
-  theme_bw()+
-  xlab(expression(paste('PRED. GPP (mg C m'^-2,' day'^-1,')')))+
-  ylab(expression(paste('OBS. GPP (mg C m'^-2,' day'^-1,')')))+
-  scale_fill_manual(values=c("#e63946","#457b9d"),
-                    name="How were loads\ndeteremined?")+
-  # scale_fill_manual(values=c("#457b9d","#457b9d"),
-  #                   name="How were loads\ndeteremined?")+
-  scale_shape_manual(values=c(21,25),
-                     name="Does the lake\nhave surface inflow(s)?")+
-  geom_text_repel(aes(label = lakeName), size = 3)+
-  geom_abline(intercept = 0, slope = 1)+
-  facet_grid(.~dataset)+
-  theme(panel.spacing = unit(0, "lines"))+
-  guides(fill = guide_legend(override.aes = list(shape = 21) ),
-         shape = guide_legend(override.aes = list(fill = "black") ) )+
-  xlim(c(0,10000))+ylim(c(0,10000))
-
-
-#Predicted "equilibrium" DOC values are much lower than observed DOC? Why?
-B<-master_df %>%
-  left_join(., preds_full,  by="lakeName") %>%
-    left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  filter(!dataset=='NA')%>%  ggplot(aes(y=DOC_mgL, x=eqDOC, fill=dataset, shape=inflows_YN))+
-  geom_point( size=3, alpha=0.8)+
-  geom_abline(intercept = 0, slope = 1)+
-  xlab(expression(paste('PRED. lake DOC mg L'^-1,)))+
-  ylab(expression(paste('OBS. lake DOC mg L'^-1,)))+
-  scale_fill_manual(values=c("#e63946","#457b9d"),
-                    name="How were loads\ndeteremined?")+
-  # scale_fill_manual(values=c("#457b9d","#457b9d"),
-  #                   name="How were loads\ndeteremined?")+
-  scale_shape_manual(values=c(21,25),
-                     name="Does the lake\nhave surface inflow(s)?")+
-    geom_text_repel(aes(label = lakeName), size = 3)+
-  theme_bw()+
-  facet_grid(.~dataset)+
-  theme(panel.spacing = unit(0, "lines"))+
-  guides(fill = guide_legend(override.aes = list(shape = 21) ),
-         shape = guide_legend(override.aes = list(fill = "black") ) )+
-  xlim(c(0,75))+ylim(c(0,75))
-
-
-#Model tends to overpredict DOC, but it's especially bad for two lakes (EastLong, Vortsjarv)
-
-#Relationship between equilibrium TP and actual in-lake TP
-C<-master_df %>%
-  left_join(., preds_full,  by="lakeName") %>%
-    left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  filter(!dataset=='NA')%>%  ggplot(aes(x=eqTP, y=TP_ugL, fill=dataset, shape=inflows_YN))+
-  geom_point(size=3, alpha=0.8)+
-  geom_abline(intercept = 0, slope = 1)+
-  xlab(expression(paste('PRED. lake TP ug L'^-1,)))+
-  ylab(expression(paste('OBS. lake TP ug L'^-1,)))+
-  scale_fill_manual(values=c("#e63946","#457b9d"),
-                    name="How were loads\ndeteremined?")+
-  # scale_fill_manual(values=c("#457b9d","#457b9d"),
-  #                   name="How were loads\ndeteremined?")+
-  scale_shape_manual(values=c(21,25),
-                     name="Does the lake\nhave surface inflow(s)?")+
-  theme_bw()+
-  geom_text_repel(aes(label = lakeName), size = 3)+
-  facet_grid(.~dataset)+
-  theme(panel.spacing = unit(0, "lines"))+
-  guides(fill = guide_legend(override.aes = list(shape = 21) ),
-         shape = guide_legend(override.aes = list(fill = "black") ) )+
-  xlim(c(0,350))+ylim(c(0,350))
-
-
-
-#What do the zMix estimates look like compared to actual mean zMix observed values?
-D<-master_df %>%
-  left_join(., preds_full,  by="lakeName") %>%
-    left_join(., metadata %>%
-              select(lakeName, inflows_YN), by="lakeName") %>%
-  filter(!dataset=='NA')%>%  ggplot(aes(y=meanzMix, x=zMix_mod, fill=dataset, shape=inflows_YN))+
-  geom_point(size=3, alpha=0.8)+
-  geom_abline(intercept = 0, slope = 1)+
-  scale_fill_manual(values=c("#e63946","#457b9d"),
-                    name="How were loads\ndeteremined?")+
-  # scale_fill_manual(values=c("#457b9d","#457b9d"),
-  #                   name="How were loads\ndeteremined?")+
-  scale_shape_manual(values=c(21,25),
-                     name="Does the lake\nhave surface inflow(s)?")+
-  xlab("PRED. zMix (m)")+
-  ylab("OBS. zMix (m)")+
-  theme_bw()+
-  geom_text_repel(aes(label = lakeName), size = 3)+
-  facet_grid(.~dataset)+
-  theme(panel.spacing = unit(0, "lines"))+
-  guides(fill = guide_legend(override.aes = list(shape = 21) ),
-         shape = guide_legend(override.aes = list(fill = "black") ) )+
-  xlim(c(0,10))+ylim(c(0,10))
-
-
-(A+B)/(C+D)+
-  plot_layout(guides = 'collect')+
-  plot_annotation(tag_levels = 'A')
-ggsave(here("results/draft MS figs/Fig5.predVSmeasuredGPP-DOC-TP-zMix.png"), width=9, height=6,units="in", dpi=600)
-
-
-```
 
 ### SUPP FIGS
 
@@ -2903,119 +2546,7 @@ ggsave(here("figures/MS/FigureS2.boxplot_and_dailyGPP.png"), width=11, height=8.
 #### Figure S3. Measured vs. modeled loads
 
 ```{r, out.width = '100%',fig.height=15}
-
-
-# modelled_loads_kg_comparison <- modelled_loads_kg %>%
-#   rename(TPinflow_modelled_mgm3=TP_mgm3,
-#          DOCinflow_modelled_gm3=DOC_gm3,
-#          Qin_modelled_m3day=Qin,
-#          TP_load_kg_modelled=TP_load_kg,
-#          DOC_load_kg_modelled=DOC_load_kg) %>%
-#   select(-dataset)
-# 
-# inflow_conc_comparison <- inflow_conc_summary %>%
-#   filter(dataset=="measured") %>%
-#   rename(DOC_load_kg_measured=DOC_load,
-#          TP_load_kg_measured=TP_load,
-#          Qin_m3sec=Qin,
-#          TPinflow_measured_mgm3=TP_mgm3,
-#          DOCinflow_measured_gm3=DOC_gm3) %>%
-#   mutate(Qin_m3day=Qin_m3sec*86400,
-#          DOC_load_kg_measured=DOC_load_kg_measured/n_days/1000,
-#          TP_load_kg_measured=TP_load_kg_measured/n_days/1000000) %>%
-#   select(-Qin_m3sec,-dataset)
-#          
-#          
-#          
-# inflow_comparison <- left_join(inflow_conc_comparison,modelled_loads_kg_comparison, by=c("lakeName")) %>%
-#     mutate(
-#     DOCinflow_measured_gm3 = replace(DOCinflow_measured_gm3, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
-#     TPinflow_measured_mgm3 = replace(TPinflow_measured_mgm3, lakeName=="EastLong", 48.9)) %>%
-#   #calculate the C:P
-#   mutate(DOC_TP_measured=DOCinflow_measured_gm3/TPinflow_measured_mgm3,
-#          DOC_TP_modeled=DOCinflow_modelled_gm3/TPinflow_modelled_mgm3)
-# 
-# # A<-inflow_comparison %>%
-# #   ggplot(aes(x=(DOC_load_kg_measured),y=(DOC_load_kg_modelled))) +
-# #   geom_point()+
-# #   geom_abline(intercept=0, slope=1)+
-# #   theme_few()+
-# #   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-# #   labs(x=" measured DOC load (kg/day)",
-# #        y=" modeled DOC load (kg/day)")
-# 
-# B<-inflow_comparison %>%
-#   ggplot(aes(x=(DOCinflow_measured_gm3),y=(DOCinflow_modelled_gm3))) +
-#   geom_point()+
-#   geom_abline(intercept=0, slope=1)+
-#   theme_few()+
-#   # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-#   labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
-#        y=expression(paste('Modeled inflow DOC g m'^-3,)))
-# 
-# 
-# # C<-inflow_comparison %>%
-# #   ggplot(aes(x=(TP_load_kg_measured),y=(TP_load_kg_modelled))) +
-# #   geom_point()+
-# #   geom_abline(intercept=0, slope=1)+
-# #   theme_few()+
-# #   geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-# #   labs(x=" measured TP load (kg/day)",
-# #        y=" modeled TP load (kg/day)")
-# 
-# D<-inflow_comparison %>%
-#   ggplot(aes(x=(TPinflow_measured_mgm3),y=(TPinflow_modelled_mgm3))) +
-#   geom_point()+
-#   geom_abline(intercept=0, slope=1)+
-#   theme_few()+
-#   # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-#   labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
-#        y=expression(paste('Modeled inflow TP mg m'^-3,)))
-# 
-# 
-# gg_title = str_wrap("Modeled vs. measured TP and DOC inflow concentrations", width=100)
-#  
-# # (A+B)/(C+D) + plot_annotation(title = gg_title)
-# (B+D) 
-# # + plot_annotation(title = gg_title)
-#   
-# 
-# ggsave(here("figures/modeled_vs_measured_conc_18lakes_v1.png"), dpi=600, width=8,height=5, units="in")
-
-
-#Plot using master_df dataset
-
-A<-master_df %>%
-  mutate(
-    DOC_gm3_obs = replace(DOC_gm3_obs, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
-    TP_mgm3_obs = replace(TP_mgm3_obs, lakeName=="EastLong", 48.9)) %>%
-  ggplot(aes(x=(DOC_gm3_obs),y=(DOC_gm3_mod))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
-       y=expression(paste('Modeled inflow DOC g m'^-3,)))
-
-B<-master_df %>%
-  mutate(
-    DOC_gm3_obs = replace(DOC_gm3_obs, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
-    TP_mgm3_obs = replace(TP_mgm3_obs, lakeName=="EastLong", 48.9)) %>%
-  ggplot(aes(x=(TP_mgm3_obs),y=(TP_mgm3_mod))) +
-  geom_point()+
-  geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
-       y=expression(paste('Modeled inflow TP mg m'^-3,)))
-
-(A+B) 
-# + plot_annotation(title = gg_title)
-  
-
-ggsave(here("figures/modeled_vs_measured_conc_18lakes.png"), dpi=600, width=8,height=5, units="in")
-
-
+#Make a dataframe of RMSEs
 ## RMSEs
 DOC_vals <- master_df %>% filter(lakeName %in% observed_loads_kelly$lakeName) %>% drop_na(DOC_gm3_mod) %>% select(DOC_gm3_obs, DOC_gm3_mod)
 actual_DOCin <- DOC_vals$DOC_gm3_obs
@@ -3027,49 +2558,123 @@ actual_TPin <- TP_vals$TP_mgm3_obs
 pred_TPin <- TP_vals$TP_mgm3_mod
 Metrics::rmse(actual_TPin,pred_TPin)
 
+TP_vals_loads <- master_df %>% filter(lakeName %in% observed_loads_kelly$lakeName) %>% drop_na(TP_load_modeled) %>% select(TP_load_measured, TP_load_modeled)
+actual_TPload <- TP_vals_loads$TP_load_measured
+pred_TPload <- TP_vals_loads$TP_load_modeled
+Metrics::rmse(actual_TPload,pred_TPload)
+
+DOC_vals_loads <- master_df %>% filter(lakeName %in% observed_loads_kelly$lakeName) %>% drop_na(DOC_load_modeled) %>% select(DOC_load_measured, DOC_load_modeled)
+actual_DOCload <- DOC_vals_loads$DOC_load_measured
+pred_DOCload <- DOC_vals_loads$DOC_load_modeled
+Metrics::rmse(actual_DOCload,pred_DOCload)
+
+
 DOCin_lm <- lm(DOC_gm3_mod ~ DOC_gm3_obs, data=DOC_vals)
 summary(DOCin_lm)
 
 TPin_lm <- lm(TP_mgm3_mod ~ TP_mgm3_obs, data=TP_vals)
 summary(TPin_lm)
 
-#Plot using master_df dataset
+#Make a little dataframe for plotting RMSEs 
+names <- c("DOCin","TPin","DOCload","TPload")
+RMSEs <- c(Metrics::rmse(actual_DOCin,pred_DOCin),Metrics::rmse(actual_TPin,pred_TPin),
+           Metrics::rmse(actual_DOCload,pred_DOCload),Metrics::rmse(actual_TPload,pred_TPload))
+RMSEs <- data.frame(names, RMSEs) %>%
+    mutate(x="left",
+         y="top")
 
+
+my_breaks = c(1,3,10,30)
+A<-master_df %>%
+  mutate(
+    DOC_gm3_obs = replace(DOC_gm3_obs, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
+    TP_mgm3_obs = replace(TP_mgm3_obs, lakeName=="EastLong", 48.9)) %>%
+  ggplot(aes(x=(DOC_gm3_obs),y=(DOC_gm3_mod))) +
+  geom_point(shape=21, alpha=0.5, fill="black", size=2.2)+
+  geom_abline(intercept=0, slope=1)+
+  theme_pubr(base_size = 12, border=TRUE)+
+  labs(x=expression(paste('Measured inflow DOC g m'^-3,)),
+       y=expression(paste('Modeled inflow DOC g m'^-3,)))+
+  scale_x_log10(labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(1,40))+
+  scale_y_log10(labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(1,40))+
+  ggpp::geom_label_npc(data = RMSEs %>% filter(names=="DOCin"),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 size=3, alpha=0.5)
+
+my_breaks = c(10,30,100,300)
+B<-master_df %>%
+  mutate(
+    DOC_gm3_obs = replace(DOC_gm3_obs, lakeName=="EastLong", 35.2), #replace with values from gridSearchInput file
+    TP_mgm3_obs = replace(TP_mgm3_obs, lakeName=="EastLong", 48.9)) %>%
+  ggplot(aes(x=(TP_mgm3_obs),y=(TP_mgm3_mod))) +
+  geom_point(shape=21, alpha=0.5, fill="black", size=2.2)+
+  geom_abline(intercept=0, slope=1)+
+  theme_pubr(base_size = 12, border=TRUE)+
+  labs(x=expression(paste('Measured inflow TP mg m'^-3,)),
+       y=expression(paste('Modeled inflow TP mg m'^-3,)))+
+  scale_x_log10(labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(5,300))+
+  scale_y_log10(labels = my_breaks,
+                breaks = my_breaks,
+                limits = c(5,300))+
+  ggpp::geom_label_npc(data = RMSEs %>% filter(names=="TPin"),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 size=3, alpha=0.5)
+
+## Loads instead of concentrations
+## Looks even better TBH.
+my_breaks = c(1,10,100,1000,10000,100000)
+tf<-trans_format("log10", math_format(10^.x))
 C<-master_df %>%
   ggplot(aes(x=(DOC_load_measured),y=(DOC_load_modeled))) +
-  geom_point()+
+  geom_point(shape=21, alpha=0.5, fill="black", size=2.2)+
   geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x="Measured DOC load (kg/day)",
-       y="Modeled DOC load (kg/day)")+
-  scale_y_continuous(trans = log10_trans(),
-    breaks = trans_breaks("log10", function(x) 10^x),
-    labels = trans_format("log10", math_format(10^.x)))+
-  scale_x_continuous(trans = log10_trans(),
-    breaks = trans_breaks("log10", function(x) 10^x),
-    labels = trans_format("log10", math_format(10^.x)))
+  geom_abline(intercept=0, slope=1)+
+  theme_pubr(base_size = 12, border=TRUE)+
+  labs(x=expression(paste('Measured DOC load kg day'^-1)),
+       y=expression(paste('Modeled DOC load kg day'^-1)))+
+  scale_x_log10(labels = tf(my_breaks),
+                breaks = my_breaks,
+                limits = c(1,100000))+
+  scale_y_log10(labels =  tf(my_breaks),
+                breaks = my_breaks,
+                limits = c(1,100000))+
+  ggpp::geom_label_npc(data = RMSEs %>% filter(names=="DOCload"),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 size=3, alpha=0.5)
 
+my_breaks = c(0.001,0.1,10,1000)
+tf<-trans_format("log10", math_format(10^.x))
 D<-master_df %>%
   ggplot(aes(x=(TP_load_measured),y=(TP_load_modeled))) +
-  geom_point()+
+  geom_point(shape=21, alpha=0.5, fill="black", size=2.2)+
   geom_abline(intercept=0, slope=1)+
-  theme_few()+
-  # geom_text_repel(aes(label = lakeName), size = 3, max.overlaps=2)+
-  labs(x="Measured DOC load (kg/day)",
-       y="Modeled DOC load (kg/day)")+
-  scale_y_continuous(trans = log10_trans(),
-    breaks = trans_breaks("log10", function(x) 10^x),
-    labels = trans_format("log10", math_format(10^.x)))+
-  scale_x_continuous(trans = log10_trans(),
-    breaks = trans_breaks("log10", function(x) 10^x),
-    labels = trans_format("log10", math_format(10^.x)))
+  geom_abline(intercept=0, slope=1)+
+  theme_pubr(base_size = 12, border=TRUE)+
+  labs(x=expression(paste('Measured TP load kg day'^-1)),
+       y=expression(paste('Modeled TP load kg day'^-1)))+
+  scale_x_log10(labels = tf(my_breaks),
+                breaks = my_breaks,
+                limits = c(0.001,1000))+
+  scale_y_log10(labels =  tf(my_breaks),
+                breaks = my_breaks,
+                limits = c(0.001,1000))+
+  ggpp::geom_label_npc(data = RMSEs %>% filter(names=="TPload"),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 size=3, alpha=0.5)
 
-(C+D) 
+(A+B)/(C+D)+plot_annotation(tag_levels = 'A') 
 # + plot_annotation(title = gg_title)
-  
-
-ggsave(here("figures/modeled_vs_measured_loads_18lakes.png"), dpi=600, width=8,height=5, units="in")
+#   
+# 
+ggsave(here("figures/MS/FigS4.modeled_vs_measured_loads_18lakes.png"), dpi=600, width=8,height=7, units="in")
+# 
+#
 
 
 
@@ -3270,5 +2875,185 @@ gridSearchVals %>%
         legend.position="none",
         plot.margin = margin(0,1,0,0, "cm"))
 ggsave(here("figures/MS/FigureS5.histograms_parameter_maxlogliklihood.png"), dpi=600, width=11,height=8.5, units="in")
+
+```
+
+#.
+#.
+#.
+#.
+#. ARCHIVE
+### Fig2- lake and stream nutrients
+
+```{r}
+FigX_lake_and_load_conc<-master_df %>%
+  ggplot(aes(x=DOC_mgL, y=TP_ugL,
+             # fill=DOC_mgL/(TP_ugL),
+             ))+
+  geom_point(shape=21, size=3, color="black", fill="grey50")+
+  # geom_abline(intercept = 0, slope = 1)+
+  ylab(expression('Mean lake TP ug L'^-1))+
+  xlab(expression(paste('Mean lake DOC mg L'^-1,)))+
+  # scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
+  #                                  name="Lake DOC:TP\n(mass:mass)")+
+  theme_classic()+
+    theme(legend.position = c(0.02, 0.89),
+        legend.justification = c("left", "bottom"),
+        legend.box.just = "right",
+        legend.title.align = 0,
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        legend.background = element_blank(),
+        legend.margin = margin(0, 0, 0, 0),
+        legend.title = element_text(size=10))+
+
+master_df %>%
+  filter(!dataset=="NA")%>%
+  ggplot(aes(x=log10(DOC_load_kg), y=log10(TP_load_kg),
+             # fill=DOC_load_kgday_mean/(TP_load_kgday_mean*1000),
+             shape=dataset))+
+  geom_point( size=3, color="black", fill="grey20")+
+  scale_shape_manual(values=c(21,25),
+                     name="Inflow estimates:")+
+  # geom_abline(intercept = 0, slope = 1)+
+  ylab(expression('Mean TP load kg day'^-1))+
+  xlab(expression(paste('Mean DOC load kg day'^-1,)))+
+  # scale_fill_continuous_sequential(palette = "Lajolla", rev=FALSE,
+  #                                  name="Load DOC:TP\n(mass:mass)")+
+  # annotate(geom="text",x=0.0001, y=150, label="n=17",
+  #             color="black")+
+  theme_classic()+
+    geom_text_repel(aes(label = lakeName), size = 3)+
+  #Moves legend to inside of plot
+  theme(legend.position = c(0.05, 0.79),
+        legend.justification = c("left", "bottom"),
+        legend.box.just = "right",
+        legend.title.align = 0,
+        legend.direction = "vertical",
+        legend.box = "vertical",
+        legend.background = element_blank(),
+        legend.margin = margin(0, 0, 0, 0),
+        legend.title = element_text(size=10)) +
+ plot_annotation(tag_levels = 'A')
+
+FigX_lake_and_load_conc
+ggsave(here("results/draft MS figs/lakeAndLoadConcentrations.png"), width=10, height=5,units="in", dpi=600)
+
+
+
+```
+### Figure 5 - Obs vs pred
+
+```{r}
+
+#PREDICTED VS OBSERVED
+A<-master_df %>%
+  left_join(., preds_full,  by="lakeName") %>%
+    left_join(., metadata %>%
+              select(lakeName, inflows_YN), by="lakeName") %>%
+  filter(!dataset=='NA')%>%
+  ggplot(aes(y=medianGPP, x=PPareal, fill=dataset, shape=inflows_YN))+
+  geom_point(size=3, alpha=0.8)+
+  theme_bw()+
+  xlab(expression(paste('PRED. GPP (mg C m'^-2,' day'^-1,')')))+
+  ylab(expression(paste('OBS. GPP (mg C m'^-2,' day'^-1,')')))+
+  scale_fill_manual(values=c("#e63946","#457b9d"),
+                    name="How were loads\ndeteremined?")+
+  # scale_fill_manual(values=c("#457b9d","#457b9d"),
+  #                   name="How were loads\ndeteremined?")+
+  scale_shape_manual(values=c(21,25),
+                     name="Does the lake\nhave surface inflow(s)?")+
+  geom_text_repel(aes(label = lakeName), size = 3)+
+  geom_abline(intercept = 0, slope = 1)+
+  facet_grid(.~dataset)+
+  theme(panel.spacing = unit(0, "lines"))+
+  guides(fill = guide_legend(override.aes = list(shape = 21) ),
+         shape = guide_legend(override.aes = list(fill = "black") ) )+
+  xlim(c(0,10000))+ylim(c(0,10000))
+
+
+#Predicted "equilibrium" DOC values are much lower than observed DOC? Why?
+B<-master_df %>%
+  left_join(., preds_full,  by="lakeName") %>%
+    left_join(., metadata %>%
+              select(lakeName, inflows_YN), by="lakeName") %>%
+  filter(!dataset=='NA')%>%  ggplot(aes(y=DOC_mgL, x=eqDOC, fill=dataset, shape=inflows_YN))+
+  geom_point( size=3, alpha=0.8)+
+  geom_abline(intercept = 0, slope = 1)+
+  xlab(expression(paste('PRED. lake DOC mg L'^-1,)))+
+  ylab(expression(paste('OBS. lake DOC mg L'^-1,)))+
+  scale_fill_manual(values=c("#e63946","#457b9d"),
+                    name="How were loads\ndeteremined?")+
+  # scale_fill_manual(values=c("#457b9d","#457b9d"),
+  #                   name="How were loads\ndeteremined?")+
+  scale_shape_manual(values=c(21,25),
+                     name="Does the lake\nhave surface inflow(s)?")+
+    geom_text_repel(aes(label = lakeName), size = 3)+
+  theme_bw()+
+  facet_grid(.~dataset)+
+  theme(panel.spacing = unit(0, "lines"))+
+  guides(fill = guide_legend(override.aes = list(shape = 21) ),
+         shape = guide_legend(override.aes = list(fill = "black") ) )+
+  xlim(c(0,75))+ylim(c(0,75))
+
+
+#Model tends to overpredict DOC, but it's especially bad for two lakes (EastLong, Vortsjarv)
+
+#Relationship between equilibrium TP and actual in-lake TP
+C<-master_df %>%
+  left_join(., preds_full,  by="lakeName") %>%
+    left_join(., metadata %>%
+              select(lakeName, inflows_YN), by="lakeName") %>%
+  filter(!dataset=='NA')%>%  ggplot(aes(x=eqTP, y=TP_ugL, fill=dataset, shape=inflows_YN))+
+  geom_point(size=3, alpha=0.8)+
+  geom_abline(intercept = 0, slope = 1)+
+  xlab(expression(paste('PRED. lake TP ug L'^-1,)))+
+  ylab(expression(paste('OBS. lake TP ug L'^-1,)))+
+  scale_fill_manual(values=c("#e63946","#457b9d"),
+                    name="How were loads\ndeteremined?")+
+  # scale_fill_manual(values=c("#457b9d","#457b9d"),
+  #                   name="How were loads\ndeteremined?")+
+  scale_shape_manual(values=c(21,25),
+                     name="Does the lake\nhave surface inflow(s)?")+
+  theme_bw()+
+  geom_text_repel(aes(label = lakeName), size = 3)+
+  facet_grid(.~dataset)+
+  theme(panel.spacing = unit(0, "lines"))+
+  guides(fill = guide_legend(override.aes = list(shape = 21) ),
+         shape = guide_legend(override.aes = list(fill = "black") ) )+
+  xlim(c(0,350))+ylim(c(0,350))
+
+
+
+#What do the zMix estimates look like compared to actual mean zMix observed values?
+D<-master_df %>%
+  left_join(., preds_full,  by="lakeName") %>%
+    left_join(., metadata %>%
+              select(lakeName, inflows_YN), by="lakeName") %>%
+  filter(!dataset=='NA')%>%  ggplot(aes(y=meanzMix, x=zMix_mod, fill=dataset, shape=inflows_YN))+
+  geom_point(size=3, alpha=0.8)+
+  geom_abline(intercept = 0, slope = 1)+
+  scale_fill_manual(values=c("#e63946","#457b9d"),
+                    name="How were loads\ndeteremined?")+
+  # scale_fill_manual(values=c("#457b9d","#457b9d"),
+  #                   name="How were loads\ndeteremined?")+
+  scale_shape_manual(values=c(21,25),
+                     name="Does the lake\nhave surface inflow(s)?")+
+  xlab("PRED. zMix (m)")+
+  ylab("OBS. zMix (m)")+
+  theme_bw()+
+  geom_text_repel(aes(label = lakeName), size = 3)+
+  facet_grid(.~dataset)+
+  theme(panel.spacing = unit(0, "lines"))+
+  guides(fill = guide_legend(override.aes = list(shape = 21) ),
+         shape = guide_legend(override.aes = list(fill = "black") ) )+
+  xlim(c(0,10))+ylim(c(0,10))
+
+
+(A+B)/(C+D)+
+  plot_layout(guides = 'collect')+
+  plot_annotation(tag_levels = 'A')
+ggsave(here("results/draft MS figs/Fig5.predVSmeasuredGPP-DOC-TP-zMix.png"), width=9, height=6,units="in", dpi=600)
+
 
 ```
