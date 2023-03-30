@@ -2192,44 +2192,17 @@ GLEON_global_map_alt <- world_map %>%
   expand_limits(x = world_map$long, y = world_map$lat) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
-                    select(lakeName, inflows_YN,`Longitude (decimal degrees)`,
-                           `Latitude (decimal degrees)`), by="lakeName") ,
+                    select(lakeName, `Load calc possible`,`Longitude (decimal degrees)`,
+                           `Latitude (decimal degrees)`), by="lakeName") %>%
+               rename(load_calc=`Load calc possible`),
              aes(x=`Longitude (decimal degrees)`,
                  y=`Latitude (decimal degrees)`,
-                 fill=inflows_YN),
-             shape=21, color="black", size=2, fill="#ffba08")+
+                 fill=load_calc),
+             shape=21, color="black", size=2)+
+  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
   coord_map("moll", clip="on") +
-  theme_map()
-GLEON_global_map_alt
-
-
-# ORIGINAL 
-# GLEON_global_map_alt<-
-#   ggplot(data = world) +
-#   geom_sf() +
-#   labs( x = "Longitude", y = "Latitude") +
-#   geom_jitter(data=master_df %>%
-#               left_join(., metadata %>%
-#                     select(lakeName, inflows_YN,`Longitude (decimal degrees)`,
-#                            `Latitude (decimal degrees)`), by="lakeName") ,
-#              aes(x=`Longitude (decimal degrees)`,
-#                  y=`Latitude (decimal degrees)`,
-#                  fill=inflows_YN),
-#              shape=21, color="black", size=2, fill="#ffba08")+
-#   theme_bw()+
- #  theme(
- #  axis.line = element_blank(),
- #  axis.text.x = element_blank(),
- #  axis.text.y = element_blank(),
- #  axis.ticks = element_blank(),
- #  axis.title.x = element_blank(),
- #  axis.title.y = element_blank(),
- #  # panel.grid.major = element_blank(),
- #  # panel.grid.minor = element_blank(),
- #  plot.margin = margin(0,0,0,0, "cm"),
- #  plot.background = element_rect(fill="#FFFFFF"),
- #  panel.background = element_rect(fill="#FFFFFF")
- # )
+  theme_map()+
+  theme(legend.position="none")
 GLEON_global_map_alt
 
 ggsave(here("figures/MS/FigureS1.GlobalMap.png"), width=8, height=4,units="in", dpi=600)
@@ -2250,44 +2223,27 @@ GLEON_NA <- north_america %>%
   # expand_limits(x = north_america$long, y = north_america$lat) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                    select(lakeName, `Load calc possible`,`Country`,`Longitude (decimal degrees)`,
                            `Latitude (decimal degrees)`), by="lakeName") %>%
+               rename(load_calc=`Load calc possible`) %>%
                 filter(Country %in% c("USA","Canada")),
              aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=2,  fill="#ffba08", alpha=0.5)+
+                 y=`Latitude (decimal degrees)`,
+                 fill=load_calc),
+             shape=21, color="black", size=4, alpha=0.5)+
+  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
   coord_map("moll",xlim= c(-120,-60), ylim = c(25, 50)) +
   labs(x="Longitude",
        y="Latitude") + 
   theme(panel.grid.major=element_line("grey80"),
         plot.background = element_rect(color="black", size=2),
-        panel.border = element_rect(color="grey80", fill=NA))
+        panel.border = element_rect(color="grey80", fill=NA),
+        panel.background = element_rect(fill="white"),
+        legend.position = "none")
 GLEON_NA
 ggsave(here("figures/MS/FigureS1.NorthAmerica.png"), width=4.6, height=2.5,units="in", dpi=600)
 
 
-
-#Old version
-# GLEON_NA<-ggplot(data = north_america) +
-#   geom_sf() +
-#   coord_sf(xlim= c(-125,-60), ylim = c(25, 48), expand=FALSE) +
-#   labs( x = "Longitude", y = "Latitude") +
-#   # geom_sf_label(aes(label = continent))+
-#   geom_point(data=master_df %>%
-#               left_join(., metadata %>%
-#                     select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-#                            `Latitude (decimal degrees)`), by="lakeName") %>%
-#                 filter(Country %in% c("USA","Canada")),
-#              aes(x=`Longitude (decimal degrees)`,
-#                  y=`Latitude (decimal degrees)`),
-#              shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-#   theme_bw()+
-#   theme(plot.margin = margin(0,0,0,0, "cm"),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank())
-# GLEON_NA
-
-# ggsave(here("figures/CaryMeeting/north_american_sites.png"), width=10, height=9,units="in", dpi=600)
 
   
 # europe <- ne_countries(continent = "europe",scale = "medium", returnclass = "sf")
@@ -2302,41 +2258,25 @@ GLEON_EURO <- europe %>%
   ) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                     select(lakeName, `Load calc possible`,`Country`,`Longitude (decimal degrees)`,
                            `Latitude (decimal degrees)`), by="lakeName") %>%
-                filter(!Country %in% c("USA","Canada","New Zealand","Taiwan","China")),
+               rename(load_calc=`Load calc possible`) %>%
+              filter(!Country %in% c("USA","Canada","New Zealand","Taiwan","China")),
              aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=2,  fill="#ffba08", alpha=0.5)+
+                 y=`Latitude (decimal degrees)`,
+                 fill=load_calc),
+             shape=21, color="black", size=4, alpha=0.5)+
+  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
   coord_map("moll", xlim= c(-10,25), ylim = c(50, 70)) +
   labs(x="Longitude",
        y="Latitude") + 
   theme(panel.grid.major=element_line("grey80"),
         plot.background = element_rect(color="black", size=2),
-        panel.border = element_rect(color="grey80", fill=NA))
+        panel.border = element_rect(color="grey80", fill=NA),
+        panel.background = element_rect(fill="white"),
+        legend.position = "none")
 GLEON_EURO
 ggsave(here("figures/MS/FigureS1.Europe.png"), width=3.5, height=2.5,units="in", dpi=600)
-
-
-#Old version
-# GLEON_EURO<-ggplot(data = europe) +
-#   geom_sf() +
-#   coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
-#   labs( x = "Longitude", y = "Latitude") +
-#   # geom_sf_label(aes(label = continent))+
-#   geom_point(data=master_df %>%
-#               left_join(., metadata %>%
-#                     select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-#                            `Latitude (decimal degrees)`), by="lakeName") %>%
-#                 filter(!Country %in% c("USA","Canada","New Zealand","Taiwan","China")),
-#              aes(x=`Longitude (decimal degrees)`,
-#                  y=`Latitude (decimal degrees)`),
-#              shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-#   theme_bw()+
-#   theme(plot.margin = margin(0,0,0,0, "cm"),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank())
-# GLEON_EURO
 
 
 NZ <- world_map %>% filter(region == "New Zealand" & subregion %in% c("North Island","South Island"))
@@ -2350,42 +2290,26 @@ GLEON_NZ <- NZ %>%
   ) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                    select(lakeName, `Load calc possible`,`Country`,`Longitude (decimal degrees)`,
                            `Latitude (decimal degrees)`), by="lakeName") %>%
+               rename(load_calc=`Load calc possible`) %>%
                 filter(Country %in% c("New Zealand")),
              aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
+                 y=`Latitude (decimal degrees)`,
+                 fill=load_calc),
+             shape=21, color="black", size=4, alpha=0.5)+
+  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
   coord_map("moll") +
   labs(x="Longitude",
        y="Latitude") + 
   theme(panel.grid.major=element_line("grey80"),
         plot.background = element_rect(color="black", size=2),
-        panel.border = element_rect(color="grey80", fill=NA))
+        panel.border = element_rect(color="grey80", fill=NA),
+        panel.background = element_rect(fill="white"),
+        legend.position = "none")
 
 GLEON_NZ
 ggsave(here("figures/MS/FigureS1.NZ.png"), width=2.15, height=2.5,units="in", dpi=600)
-
-
-#Old version
-# GLEON_NZ<-ggplot(data = NZ) +
-#   geom_sf(expand=FALSE) +
-#   # coord_sf(xlim= c(-10,25), ylim = c(50, 70)) +
-#   labs( x = "Longitude", y = "Latitude") +
-#   # geom_sf_label(aes(label = continent))+
-#   geom_point(data=master_df %>%
-#               left_join(., metadata %>%
-#                     select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-#                            `Latitude (decimal degrees)`), by="lakeName") %>%
-#                 filter(Country %in% c("New Zealand")),
-#              aes(x=`Longitude (decimal degrees)`,
-#                  y=`Latitude (decimal degrees)`),
-#              shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-#   theme_bw()+
-#   theme(plot.margin = margin(0,0,0,0, "cm"),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank())
-# ggsave(here("figures/CaryMeeting/NZMap.png"), width=4, height=4,units="in", dpi=600)
 
 
 Asia <- world_map %>% filter(region %in% c("China","Taiwan","Laos","Vietnam",
@@ -2399,42 +2323,25 @@ GLEON_ASIA<-Asia %>%
   ) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
-                    select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
+                    select(lakeName, `Load calc possible`,`Country`,`Longitude (decimal degrees)`,
                            `Latitude (decimal degrees)`), by="lakeName") %>%
+               rename(load_calc=`Load calc possible`) %>%
                 filter(Country %in% c("China","Taiwan")),
              aes(x=`Longitude (decimal degrees)`,
-                 y=`Latitude (decimal degrees)`),
-             shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
+                 y=`Latitude (decimal degrees)`,
+                 fill=load_calc),
+             shape=21, color="black", size=4, alpha=0.5)+
+  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
   coord_map("moll", xlim= c(105,125), ylim = c(20,40)) +
   labs(x="Longitude",
        y="Latitude") + 
   theme(panel.grid.major=element_line("grey80"),
         plot.background = element_rect(color="black", size=2),
-        panel.border = element_rect(color="grey80", fill=NA))
+        panel.border = element_rect(color="grey80", fill=NA),
+        panel.background = element_rect(fill="white"),
+        legend.position = "none")
 GLEON_ASIA
 ggsave(here("figures/MS/FigureS1.Asia.png"), width=2.15, height=2.5,units="in", dpi=600)
-
-#Old version
-# GLEON_ASIA<-ggplot(data = asia) +
-#   geom_sf(expand=FALSE) +
-#   coord_sf(xlim= c(90,131), ylim = c(18,53)) +
-#   # labs( x = "Longitude", y = "Latitude") +
-#   # geom_sf_label(aes(label = continent))+
-#   geom_point(data=master_df %>%
-#               left_join(., metadata %>%
-#                     select(lakeName, Country,inflows_YN,`Longitude (decimal degrees)`,
-#                            `Latitude (decimal degrees)`), by="lakeName") %>%
-#                 filter(Country %in% c("China","Taiwan")),
-#              aes(x=`Longitude (decimal degrees)`,
-#                  y=`Latitude (decimal degrees)`),
-#              shape=21, color="black", size=4,  fill="#ffba08", alpha=0.5)+
-#   theme_bw()+
-#   theme(plot.margin = margin(0,0,0,0, "cm"),
-#         axis.title.x = element_blank(),
-#         axis.title.y = element_blank())
-
-# ggsave(here("figures/CaryMeeting/AsiaMap.png"), width=4, height=4,units="in", dpi=600)
-# 
 
 
 
