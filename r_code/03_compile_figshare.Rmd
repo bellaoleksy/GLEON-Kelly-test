@@ -1,0 +1,586 @@
+---
+title: "03_compile_figshare"
+output: html_document
+date: "2023-11-20"
+---
+
+```{r setup, include=FALSE}
+
+
+library(here)
+source(here("r_code/scripts/librariesAndFunctions.R"))
+library(fs)
+library(purrr)
+
+#Read in lake metadata
+metadata<-read_csv(here("data/lakeMetadata_20230126.csv"))
+```
+
+
+# Compile high frequency data
+
+### Main folder
+
+```{r compile HF sensor data}
+
+dir <- here("data/metab_data_clean")
+folders <- list.files(dir) # folders in this dir
+
+folders <- folders[folders != "zwart_metab_data"] #Load this in separately
+folders <- folders[folders != "mfe_data"] #Load this in separately
+folders <- folders[folders != "solomon_data"] #Load this in separately
+
+HF_DO <- data.frame()
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_DO.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_DO <- rbind(HF_DO, cur)
+}
+
+HF_PAR <- data.frame() 
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_PAR.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_PAR <- rbind(HF_PAR, cur)
+}
+
+HF_profile <- data.frame() 
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_tempProfile.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') %>%
+    pivot_longer(-dateTime)
+  cur$lakeName <- folders[i]
+  HF_profile <- rbind(HF_profile, cur) %>%
+    filter(!name %in% c("sensorTemp"))
+}
+
+HF_surf_temp <- data.frame()
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_sensorTemp.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_surf_temp <- rbind(HF_surf_temp, cur)
+}
+
+HF_wind <- data.frame() 
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_windSpeed.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_wind <- rbind(HF_wind, cur)
+}
+
+
+```
+
+## Add in the MFE lakes
+
+```{r}
+dir <- here("data/metab_data_clean/mfe_data")
+folders <- list.files(dir) # folders in this dir
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_DO.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_DO <- rbind(HF_DO, cur)
+}
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_PAR.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_PAR <- rbind(HF_PAR, cur)
+}
+
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_tempProfile.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') %>%
+    pivot_longer(-dateTime)
+  cur$lakeName <- folders[i]
+  HF_profile <- rbind(HF_profile, cur)
+}
+
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_sensorTemp.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_surf_temp <- rbind(HF_surf_temp, cur)
+}
+
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_windSpeed.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_wind <- rbind(HF_wind, cur)
+}
+
+```
+
+## Add in Zwart lakes
+
+```{r}
+dir <- here("data/metab_data_clean/zwart_metab_data")
+folders <- list.files(dir) # folders in this dir
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_DO.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_DO <- rbind(HF_DO, cur)
+}
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_PAR.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_PAR <- rbind(HF_PAR, cur)
+}
+
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_tempProfile.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') %>%
+    pivot_longer(-dateTime)
+  cur$lakeName <- folders[i]
+  HF_profile <- rbind(HF_profile, cur)
+}
+
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_sensorTemp.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_surf_temp <- rbind(HF_surf_temp, cur)
+}
+
+
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_windSpeed.txt', sep =
+                                                  '')),
+               header = T,
+               sep = ',') 
+  cur$lakeName <- folders[i]
+  HF_wind <- rbind(HF_wind, cur)
+}
+
+```
+
+## Add Solomon lakes
+These are tab delimited intstead of comma so they were giving me trouble
+
+```{r}
+dir <- here("data/metab_data_clean/solomon_data")
+folders <- list.files(dir) # folders in this dir
+
+HF_DO_CTS <- data.frame()
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_DO.txt', sep =
+                                                  '')),
+               header = T,
+               sep = '\t') 
+  cur$lakeName <- folders[i]
+  HF_DO_CTS <- rbind(HF_DO_CTS, cur)
+}
+
+HF_PAR_CTS <- data.frame()
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_PAR.txt', sep =
+                                                  '')),
+               header = T,
+               sep = '\t') 
+  cur$lakeName <- folders[i]
+  HF_PAR_CTS <- rbind(HF_PAR_CTS, cur)
+}
+
+HF_profile_CTS <- data.frame()
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_tempProfile.txt', sep =
+                                                  '')),
+               header = T,
+               sep = '\t') %>%
+    pivot_longer(-dateTime)
+  cur$lakeName <- folders[i]
+  HF_profile_CTS <- rbind(HF_profile_CTS, cur)
+}
+
+HF_surf_temp_CTS<- data.frame()
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_sensorTemp.txt', sep =
+                                                  '')),
+               header = T,
+               sep = '\t') 
+  cur$lakeName <- folders[i]
+  HF_surf_temp_CTS <- rbind(HF_surf_temp_CTS, cur)
+  HF_profile_CTS$name<- str_replace(HF_profile_CTS$name, "Temp", "wtr_")
+  HF_profile_CTS$name<- str_replace(HF_profile_CTS$name, "temp", "wtr_")
+
+}
+
+
+
+HF_wind_CTS <- data.frame()
+for (i in 1:length(folders)) {
+  cur <-
+    read.table(file.path(dir, folders[i], paste(folders[i], '_windSpeed.txt', sep =
+                                                  '')),
+               header = T,
+               sep = '\t') 
+  cur$lakeName <- folders[i]
+  HF_wind_CTS <- rbind(HF_wind_CTS, cur)
+}
+
+```
+
+
+#### Export each as a .csv file
+```{r}
+#Make sure that all the headers match
+names(HF_DO)
+names(HF_DO_CTS)
+
+names(HF_PAR)
+names(HF_PAR_CTS)
+
+names(HF_profile)
+unique(HF_profile$name)
+names(HF_profile_CTS)
+unique(HF_profile_CTS$name)
+
+
+names(HF_surf_temp)
+names(HF_surf_temp_CTS)
+
+names(HF_wind)
+names(HF_wind_CTS)
+
+#Bind together
+
+
+HF_DO <- bind_rows(HF_DO, HF_DO_CTS) %>%
+  drop_na() %>%
+  mutate(date=date(dateTime),
+         hour=hour(dateTime),
+         minute=minute(dateTime)) %>%
+  #Create new date time and override automatically
+  mutate(dateTime = paste0(date, " ", hour, ":", minute),
+         dateTime = ymd_hm(dateTime)) %>%
+  select(-c(hour,minute,date))
+  #Will want to read it into EDI as YYYY-MM-DDThh:mm:ssZ (ISO time, UTC)
+HF_DO_distinct <- HF_DO %>%
+  distinct(lakeName, dateTime, .keep_all = TRUE)
+
+HF_PAR <- bind_rows(HF_PAR, HF_PAR_CTS)%>%
+  drop_na() %>%
+  mutate(date=date(dateTime),
+         hour=hour(dateTime),
+         minute=minute(dateTime)) %>%
+  #Create new date time and override automatically
+  mutate(dateTime = paste0(date, " ", hour, ":", minute),
+         dateTime = ymd_hm(dateTime)) %>%
+  select(-c(hour,minute,date))
+  #Will want to read it into EDI as YYYY-MM-DDThh:mm:ssZ (ISO time, UTC)
+HF_PAR_distinct <- HF_PAR %>%
+  distinct(lakeName, dateTime, .keep_all = TRUE)
+
+
+HF_profile <- bind_rows(HF_profile, HF_profile_CTS) %>%
+  drop_na() %>%
+  mutate(date=date(dateTime),
+         hour=hour(dateTime),
+         minute=minute(dateTime)) %>%
+  #Create new date time and override automatically
+  mutate(dateTime = paste0(date, " ", hour, ":", minute),
+         dateTime = ymd_hm(dateTime)) %>%
+  select(-c(hour,minute,date))
+  #Will want to read it into EDI as YYYY-MM-DDThh:mm:ssZ (ISO time, UTC)
+HF_profile$name<- str_replace(HF_profile$name, "wtr_", "")
+
+HF_profile_distinct <- HF_profile %>%
+  distinct(lakeName, dateTime, name, .keep_all = TRUE)
+
+
+HF_surf_temp <- bind_rows(HF_surf_temp, HF_surf_temp_CTS)%>%
+  drop_na() %>%
+  mutate(date=date(dateTime),
+         hour=hour(dateTime),
+         minute=minute(dateTime)) %>%
+  #Create new date time and override automatically
+  mutate(dateTime = paste0(date, " ", hour, ":", minute),
+         dateTime = ymd_hm(dateTime)) %>%
+  select(-c(hour,minute,date))
+  #Will want to read it into EDI as YYYY-MM-DDThh:mm:ssZ (ISO time, UTC)
+HF_surf_temp_distinct <- HF_surf_temp %>%
+  distinct(lakeName, dateTime, .keep_all = TRUE)
+
+
+HF_wind <- bind_rows(HF_wind, HF_wind_CTS)%>%
+  drop_na() %>%
+  mutate(date=date(dateTime),
+         hour=hour(dateTime),
+         minute=minute(dateTime)) %>%
+  #Create new date time and override automatically
+  mutate(dateTime = paste0(date, " ", hour, ":", minute),
+         dateTime = ymd_hm(dateTime)) %>%
+  select(-c(hour,minute,date))
+  #Will want to read it into EDI as YYYY-MM-DDThh:mm:ssZ (ISO time, UTC)
+HF_wind_distinct <- HF_wind %>%
+  distinct(lakeName, dateTime, .keep_all = TRUE)
+
+
+write_csv(HF_DO_distinct, here("EDI/high_frequency_DO.csv"))
+write_csv(HF_PAR_distinct, here("EDI/high_frequency_PAR.csv"))
+write_csv(HF_profile_distinct, here("EDI/high_frequency_temperature_profiles.csv"))
+write_csv(HF_surf_temp_distinct, here("EDI/high_frequency_surface_temp.csv"))
+write_csv(HF_wind_distinct, here("EDI/high_frequency_wind.csv"))
+```
+
+#### QA/QC after EDI upload
+```{r}
+
+HF_DO_check <- HF_DO %>%
+  rownames_to_column(var="rowname") %>%
+  drop_na() %>%
+  mutate(date=date(dateTime),
+         hour=hour(dateTime),
+         minute=minute(dateTime),
+         second=second(dateTime))
+
+HF_DO_check_check <- HF_DO_check %>%
+  mutate(dateTime_new = paste0(date, " ", hour, ":", minute),
+         dateTime_new = ymd_hm(dateTime_new)) %>%
+  select(dateTime_new, DO, lakeName) %>%
+  rename(dateTime=dateTime_new)
+
+str(HF_DO_check_check$dateTime)
+
+write_csv(HF_DO_check_check, here("figshare/new/high_frequency_DO.csv"))
+
+HF_DO_check <- HF_DO_check_check %>%
+  rownames_to_column() %>%
+  mutate(dateTime=ymd_hms(dateTime))
+
+str()
+```
+
+
+# Compile load data
+```{r}
+
+source(here("r_code/scripts/dataPullLoads.R")) #Added on 2021-04-26; Erken added 2021-12-08
+
+
+#Declutter Environment
+rm(list = ls()[grep("mueggelsee", ls())])
+rm(list = ls()[grep("_C_", ls())])
+rm(list = ls()[grep("_Q_", ls())])
+rm(list = ls()[grep("Taupo_", ls())])
+rm(list = ls()[grep("loch_", ls())])
+rm(list = ls()[grep("zwart_", ls())])
+rm(list = ls()[grep("lm", ls())])
+rm(list = ls()[grep("Loch", ls())])
+rm(list = ls()[grep("erken", ls())])
+rm(list = ls()[grep("acton", ls())])
+rm(dontuse,  cur)
+
+#All of the MEASURED inflows
+glimpse(inflow_conc_summary)
+
+inflow_conc_summary<-inflow_conc_summary %>%
+  select(lakeName, contains("DOC"), contains("TP"),dataset) %>%
+  rename(
+         DOC_gm3_obs=DOC_gm3,
+         TP_mgm3_obs=TP_mgm3) %>%
+  select(-c(DOC_load,TP_load)) 
+
+#ALl of the MODELED inflows
+glimpse(modelled_loads_kg)
+
+#Rename a few columns for less confusion
+modelled_loads_kg_new <- modelled_loads_kg %>%
+    rename(DOC_gm3_mod=DOC_gm3,
+           TP_mgm3_mod=TP_mgm3,
+           TP_load_kg_mod=TP_load_kg,
+           DOC_log_kg_mod=DOC_load_kg)
+
+
+loads_master<-full_join(inflow_conc_summary %>% select(-dataset),
+                        modelled_loads_kg_new %>% select(-dataset),
+                        by=c("lakeName"))
+                             # "meanGPP","medianGPP",
+                             # "meanGPP_vol", "medianGPP_vol",
+                             # "DOC_load_kg","TP_load_kg",
+                             # "DOC_gm3","TP_mgm3",
+                             # "DOC_load_kgday_mean","TP_load_kgday_mean","n",
+                             # "meanzMix","medianzMix",
+                             # "dataset")) 
+
+
+glimpse(loads_master)
+```
+
+##### Export as a .csv file
+```{r}
+loads_master_export <- loads_master %>%
+  select(lakeName, DOC_gm3_mod, DOC_gm3_obs, TP_mgm3_mod, TP_mgm3_obs)
+
+write_csv(loads_master_export, here("figshare/nutrient_loads.csv"))
+
+
+# plot(loads_master_export$DOC_gm3_mod, loads_master_export_old$DOC_gm3_mod)
+# abline(0,1)
+# plot(loads_master_export$TP_mgm3_mod, loads_master_export_old$TP_mgm3_mod)
+# abline(0,1)
+
+
+```
+
+# Compile nutrient data
+```{r}
+source(here("r_code/scripts/dataPullNutrients.R"))
+rm(list = ls()[grep("nuts", ls())])
+rm(list = ls()[grep("UNDERC", ls())])
+rm(WATER_CHEM, solomonLakeData, solomonLakeData_trim, catchment_newtz)
+
+#Fix names
+newts_full <- newts_full %>%
+  mutate(lakeName = case_match(lakeName,
+                               "Ovre" ~ "OvreBjorntjarn",
+                               "Mangstrettjarn" ~ "Mangstrettjarnen",
+                               "Nastjarn" ~ "Nastjarnen",
+                               "Lillsjoliden" ~ "Lillsjolidtjarnen",
+                               "Struptjarn" ~ "Struptjarn",
+                               .default=lakeName))
+
+newts_full <- newts_full %>%
+  filter(lakeName %in% loads_master$lakeName)
+```
+
+##### Export as .csv file
+```{r}
+newts_export <- newts_full %>%
+  select(lakeName, DOC_mgL, TP_ugL)
+
+write_csv(newts_export, here("figshare/lake_nutrients.csv"))
+```
+
+
+# Compile daily metabolism estimates
+```{r}
+source(here("r_code/scripts/dataPullMetab.R")) 
+
+rm(cur)
+rm(dontuse)
+rm(MueggelseeZMix)
+rm(bella_ER)
+
+names(bella_metab)
+
+metab_export <- bella_metab %>%
+  select(lakeName, solarDay, zMix, GPP_mgO2L, ER_mgO2L) %>%
+  rename(date=solarDay,
+         zMix_m=zMix) %>%
+  drop_na(GPP_mgO2L)
+
+```
+
+##### Export as .csv file
+```{r}
+write_csv(metab_export, here("figshare/daily_metabolism.csv"))
+```
+
+# Trim metadata for export
+
+```{r}
+metadata_export <- metadata %>%
+  select(9:11,14,21:23,25:26, 30:31, 33)
+names(metadata_export)
+
+metadata_export <- metadata_export %>%
+  rename(lat_dd=`Latitude (decimal degrees)`,
+         long_dd=`Longitude (decimal degrees)`,
+         elev_m=`Altitude (m)`,
+         max_depth_m=`Maximum lake depth (m)`,
+         mean_depth_m=`Mean lake depth (m)`,
+         HRT_years=`Lake residence time (year)`,
+         SA_ha=`Surface area (ha)`,
+         volume_m3=`Volume (m3)`,
+         DO_sensor_depth_m=`DO sensor depth (m)`,
+         wind_height_m=`Wind height (m)`,
+         watershed_area_km2=`watershed area (km2)`)%>%
+  filter(lakeName %in% loads_master$lakeName)
+```
+
+##### Export as .csv file
+```{r}
+write_csv(metadata_export, here("figshare/lake_descriptions.csv"))
+```
+
+# Simulated data for export
+```{r}
+mod_data <- read_csv(here("data/metropolis_results/kellyModelOutput_wModeledLoads_2023-12-06.csv")) %>%
+  mutate(lakeName = case_match(lakeName,
+                               "Ovre" ~ "OvreBjorntjarn",
+                               "Mangstrettjarn" ~ "Mangstrettjarnen",
+                               "Nastjarn" ~ "Nastjarnen",
+                               "Lillsjoliden" ~ "Lillsjolidtjarnen",
+                               "Struptjarn" ~ "Struptjarn",
+                               .default=lakeName))
+```
+
+##### Export as .csv file
+```{r}
+write_csv(mod_data, here("figshare/modeled_data.csv"))
+```
