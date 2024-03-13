@@ -1,8 +1,8 @@
 
 # Load raw data -----------------------------------------------------------
 
-gridSearchInput<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_wphyto4bella.csv")) 
-#Use this to verify that the new load concentration calculations are indeed FLOW WEIGHTED
+# gridSearchInput<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInput_wphyto4bella.csv")) 
+# #Use this to verify that the new load concentration calculations are indeed FLOW WEIGHTED
 
 # ~Zwart loads  -------------------------------------------------
 
@@ -1076,26 +1076,56 @@ Taupo_load_summary <- bind_rows(Taupo_Hinemaiaia_load_summary,
 #          lakeName = replace(lakeName, lakeName=="Yunyang", "YunYang"))%>%
 #   pivot_wider(id_cols=lakeName, names_from=variable, values_from=value)
 
-load_estimates_huisman<-read.csv(here('data/preliminaryMetropolisResults/ExtendedRangeParameter_outputWestimatedloads.csv'), header=T,sep=",") %>%
-  select(lakeName,Pin,DOCin) %>%
-  rename(TP_mgm3=Pin,
-         DOC_gm3=DOCin)
+load_estimates_huisman <-
+  read.csv(
+    here(
+      'data/metropolis_results/kellyModelOutput_wModeledLoads_2023-12-06.csv'
+    ),
+    header = T,
+    sep = ","
+  ) %>%
+  select(lakeName, Pin, DOCin) %>%
+  rename(TP_mgm3 = Pin,
+         DOC_gm3 = DOCin) %>%
+  mutate(lakeName = case_when(lakeName == "Lillsjoliden" ~ "Lillsjolidtjarnen",
+                              lakeName == "Mangstrettjarn" ~ "Mangstrettjarnen",
+                              lakeName == "Nastjarn" ~ "Nastjarnen",
+                              lakeName == "Ovre" ~ "OvreBjorntjarn",
+                              TRUE ~ lakeName))
 
-modelled_loads_kg<-left_join(load_estimates_huisman,metadata %>%
-                               select(lakeName,`Volume (m3)`, `Lake residence time (year)`), by="lakeName") %>%
-  rename(HRT_days=`Lake residence time (year)`,
-         V=`Volume (m3)`) %>%
-  mutate(HRT_days=HRT_days*365,
-         Qin=V/HRT_days,
-         TP_load_kg=TP_mgm3*Qin*(1/1000000),
-         DOC_load_kg=DOC_gm3*Qin*(1/1000),
-         dataset="modelled")
+modelled_loads_kg <- left_join(
+  load_estimates_huisman,
+  metadata %>%
+    select(lakeName, `Volume (m3)`, `Lake residence time (year)`),
+  by = "lakeName"
+) %>%
+  rename(HRT_days = `Lake residence time (year)`,
+         V = `Volume (m3)`) %>%
+  mutate(
+    HRT_days = HRT_days * 365,
+    Qin = V / HRT_days,
+    TP_load_kg = TP_mgm3 * Qin * (1 / 1000000),
+    DOC_load_kg = DOC_gm3 * Qin * (1 / 1000),
+    dataset = "modelled"
+  )
 
 
-observed_loads_kelly<-read.csv(here('data/preliminaryMetropolisResults/KellyParameter_outputWobservedloads.csv'), header=T,sep=",") %>%
-  select(lakeName,Pin,DOCin) %>%
-  rename(TP_mgm3=Pin,
-         DOC_gm3=DOCin)
+observed_loads_kelly <-
+  read.csv(
+    here(
+      'data/metropolis_results/kellyModelOutput_wObservedLoads_2023-12-06.csv'
+    ),
+    header = T,
+    sep = ","
+  ) %>%
+  select(lakeName, Pin, DOCin) %>%
+  rename(TP_mgm3 = Pin,
+         DOC_gm3 = DOCin)%>%
+  mutate(lakeName = case_when(lakeName == "Lillsjoliden" ~ "Lillsjolidtjarnen",
+                              lakeName == "Mangstrettjarn" ~ "Mangstrettjarnen",
+                              lakeName == "Nastjarn" ~ "Nastjarnen",
+                              lakeName == "Ovre" ~ "OvreBjorntjarn",
+                              TRUE ~ lakeName))
 # 
 # compare <- full_join(observed_loads_kelly%>%
 #                        rename(TPin_obs=TP_mgm3,
