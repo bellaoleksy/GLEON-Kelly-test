@@ -68,7 +68,12 @@ bella_metab<-anti_join(bella_metab, dontuse)
 dontuse2 <- subset(bella_metab, lakeName=="P8" & solarDay > "2019-07-01")
 #Filtering out days where the thermistor chain drifted into a macrophyte bed and the model couldn't predict GPP 
 
-bella_metab<-anti_join(bella_metab, dontuse2)
+bella_metab<-anti_join(bella_metab, dontuse2)%>%
+  mutate(lakeName = case_when(lakeName == "Lillsjoliden" ~ "Lillsjolidtjarnen",
+                              lakeName == "Mangstrettjarn" ~ "Mangstrettjarnen",
+                              lakeName == "Nastjarn" ~ "Nastjarnen",
+                              lakeName == "Ovre" ~ "OvreBjorntjarn",
+                              TRUE ~ lakeName))
 
 
 
