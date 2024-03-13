@@ -420,28 +420,35 @@ linear_models <- master_df %>%
 
 
 GPP_correlations<-master_df %>%
-  select(medianGPP, HRT_days, meanzMix, TP_ugL, DOC_mgL, LSA_km2, V, WALA) %>%
+  select(lakeName, medianGPP, HRT_days, meanzMix, TP_ugL, DOC_mgL, LSA_km2, V, WALA) %>%
   mutate(CP=DOC_mgL/(TP_ugL),
          V=V/1000000) %>%
-  pivot_longer(-(1)) %>%
+  pivot_longer(-(1:2)) %>%
   rename(predictor=name)%>%
   mutate(predictor=factor(predictor,
                      levels=c("DOC_mgL",
                               "TP_ugL",
                               "CP","meanzMix",
                               "HRT_days","WALA",
-                              "LSA_km2","V")))%>%
+                              "LSA_km2","V")),
+         dataset = case_when(lakeName %in% observed_loads_kelly$lakeName ~ "calibration",
+                             TRUE ~ "modeled"))%>%
   ggplot(aes(x=value, y=medianGPP, group=predictor))+
   geom_smooth(method="lm", se=T, color="grey50", fill="black", linewidth=0.5, fullrange=TRUE)+
-  geom_point(size=3, shape=21, color="black", fill="black", alpha=0.5)+
+  geom_point(aes(shape=dataset), size=3,color="black", fill="black", alpha=0.5)+
   facet_wrap(.~predictor, scales="free",ncol=2,
              labeller=my_labeller, strip.position="bottom")+
   scale_y_log10(expression(paste('Median observed GPP (mg C m'^-2,' day'^-1,')')),
                 labels = scales::comma, breaks_log(n = 6, base = 10))+
   scale_x_log10("SA (ha)",labels = scales::comma, breaks_log(n = 5, base = 10))+
+    scale_shape_manual(values=c(21,25),
+                     name="Dataset:")+
   annotation_logticks()+
   theme_few()+
-  theme(legend.position="none",
+  theme(
+        legend.position="bottom",
+        legend.text.align = 0.5,
+        legend.margin = margin(0, 0, 0, 0),
         axis.title.x=element_blank(),
         strip.placement = "outside",
         strip.background = element_blank(),
@@ -692,9 +699,9 @@ ggsave(here("figures/MS/Figure1.GPP_correlations.pdf"), dpi=600, width=6,height=
 
 ```{r}
 
-predVals<-read.csv(here("data/metropolis_results/kellyModelOutput_wObservedLoads_2023-03-17.csv")) 
+predVals<-read.csv(here("data/metropolis_results/kellyModelOutput_wObservedLoads_2023-12-06.csv")) 
 obsVals<-read.csv(here("data/export/master_df_export.csv")) %>% select(-X)
-predVals_outOfSample<-read.csv(here("data/metropolis_results/kellyModelOutput_wModeledLoads_2023-03-17.csv")) 
+predVals_outOfSample<-read.csv(here("data/metropolis_results/kellyModelOutput_wModeledLoads_2023-12-06.csv")) 
 # obsVals_outOfSample<-read.csv(here("data/metropolis_results/gridSearchInput_unmodeledInfoLakes4bella.csv")) 
 
 compareVals<-left_join(predVals,obsVals %>%
