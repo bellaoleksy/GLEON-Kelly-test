@@ -39,6 +39,7 @@ source(here("r_code/scripts/dataPullMetab.R"))
 
 rm(cur)
 rm(dontuse)
+rm(dontuse2)
 rm(MueggelseeZMix)
 rm(bella_ER)
 
