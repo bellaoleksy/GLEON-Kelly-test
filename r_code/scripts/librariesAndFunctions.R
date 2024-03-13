@@ -1,91 +1,34 @@
-# install.packages("rmarkdown", type ="mac.binary")
-
-# install.packages("RSQLite")
-# install.packages("rgeos")
-# install.packages("patchwork")
-# install.packages("rstatix")
-# install.packages("ggcorrplot")
-
-# install.packages("ggcorrplot")
-# install.packages("ggthemes")
-# install.packages("rstatix")
-# install.packages("RiverLoad")
-# install.packages("readxl")
-# install.packages("patchwork")
-# install.packages("RSQLite")
-# install.packages("dplyr")
-# install.packages("ggplot2")
-# install.packages("yaml")
-# install.packages("scales") # to add percentages to plots and pretty_breaks(")
-# install.packages("ggplot2")
-# install.packages("sf")
-# install.packages("rnaturalearth")
-# install.packages("rnaturalearthdata")
-# install.packages("rgeos")
-# install.packages("tidyverse")
-# install.packages("ggplot2")
-# install.packages("ggpubr")
-# install.packages("ggrepel")
-# install.packages("stringr")
-# install.packages("lubridate")
-# install.packages("googlesheets4")
-# install.packages("huxtable")
-# install.packages("viridis")
-# install.packages("hrbrthemes") #has nice fonts
-# install.packages("colorspace")
-# # hrbrthemes::import_roboto_condensed(")
-# install.packages("here")
-# install.packages("renv")
-# install.packages("ggpubr")
-# install.packages("broom")
-# install.packages("glue")
-# install.packages("ggridges") # for geom_density_ridges
-# install.packages("skimr")
-# install.packages("deSolve")
-# install.packages("Metrics")
+pacman::p_load("ggcorrplot",
+               "ggthemes",
+               "rstatix",
+               "readxl",
+               "patchwork",
+               "tidyverse",
+               "RSQLite",
+               "yaml",
+               "scales",
+               "ggpubr",
+               "ggrepel",
+               "stringr",
+               "lubridate",
+               "googlesheets4",
+               "huxtable",
+               "viridis",
+               "hrbrthemes",
+               "colorspace",
+               "renv",
+               "broom",
+               "glue",
+               "ggridges",
+               "skimr",
+               "deSolve",
+               "Metrics")
 
 
-library(ggcorrplot)
-library(ggthemes)
-library(rstatix)
-# library(RiverLoad)
-library(readxl)
-library(patchwork)
-library(RSQLite)
-library(dplyr)
-library(ggplot2)
-library(yaml)
-library(scales) # to add percentages to plots and pretty_breaks()
-library(ggplot2)
-# library(sf)
-library(rnaturalearth)
-library(rnaturalearthdata)
+# library(rnaturalearth)
+# library(rnaturalearthdata)
 # library(rgeos)
-library(tidyverse)
-library(ggplot2)
-library(ggpubr)
-library(ggrepel)
-library(stringr)
-library(lubridate)
-library(googlesheets4)
-library(huxtable)
-library(viridis)
-library(hrbrthemes) #has nice fonts
-library(colorspace)
-# hrbrthemes::import_roboto_condensed()
-library(here)
-library(renv)
-library(ggpubr)
-library(broom)
-library(glue)
-library(ggridges) # for geom_density_ridges
-library(skimr)
-library(deSolve)
-library(Metrics)
 
-# install.packages("remotes")
-# remotes::install_github("MilesMcBain/breakerofchains")
-library(breakerofchains)
 
 
 
