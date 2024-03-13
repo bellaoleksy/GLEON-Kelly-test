@@ -1243,7 +1243,12 @@ observed_loads_kelly <-
 
 inflow_conc_summary<-bind_rows(zwart_load_summary,mueggelsee_load_summary,loch_load_summary,
                                Taupo_load_summary, erken_load_summary) %>%
-  mutate(dataset="measured") 
+  mutate(dataset="measured") %>%
+  mutate(lakeName = case_when(lakeName == "Lillsjoliden" ~ "Lillsjolidtjarnen",
+                              lakeName == "Mangstrettjarn" ~ "Mangstrettjarnen",
+                              lakeName == "Nastjarn" ~ "Nastjarnen",
+                              lakeName == "Ovre" ~ "OvreBjorntjarn",
+                              TRUE ~ lakeName))
 
 inflow_conc_summary_long<- inflow_conc_summary%>%
   pivot_longer(-c(lakeName, dataset))
