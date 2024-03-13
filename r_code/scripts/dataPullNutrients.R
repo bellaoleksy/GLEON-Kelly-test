@@ -4,14 +4,14 @@
 
 #Run for UNDERC sites
 #Source database script
-dbdir=file.path("~/Google Drive/My Drive/Research (common)/Research/Data/R/MFE")
+dbdir=file.path("~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/MFE")
 # db="MFEdb_20200218.db"
 db="MFEdb_20210112.db"
 # db="/Volumes/GoogleDrive/My Drive/Research (common)/Research/Data/R/MFE/MFEdb_20210112.db"
 #Updating script with 2020 data
 sensordb="MFEsensordb.db" 
-source("~/Google Drive/My Drive/Research (common)/Research/Data/R/MFE/000_dbUtil.R")
-source("~/Google Drive/My Drive/Research (common)/Research/Data/R/MFE/000_sensordbTable.R")
+source("~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/MFE/000_dbUtil.R")
+source("~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/MFE/000_sensordbTable.R")
 
 # dbTableList()
 
@@ -167,7 +167,7 @@ UNDERCnewts<-bind_rows(UNDERCnewts_2016, UNDERCnewts_2017)
 ###############~
 
 
-catchment_newtz<- read.delim('~/Google Drive/My Drive/Research (common)/Research/Data/R/catchment_metab_wg/data/in_lake_nutrients/GLEON_nutrient_inlake.txt') %>%
+catchment_newtz<- read.delim('~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/catchment_metab_wg/data/in_lake_nutrients/GLEON_nutrient_inlake.txt') %>%
   select(-comment)%>%
   separate(dateTime, c("date", "time"), "//") %>%
   mutate(date=date(date),
@@ -530,7 +530,7 @@ str(tauponuts)
 
 
 ##############Loch and Sky
-lochvalenuts <- read.csv("~/Google Drive/My Drive/Research (common)/Research/Data/R/LVWS-long-term-data/data_clean/surface_chem/LVWS_surfacewaterchemistry_master_180211.csv", stringsAsFactors = F)
+lochvalenuts <- read.csv("~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/LVWS-long-term-data/data_clean/surface_chem/LVWS_surfacewaterchemistry_master_180211.csv", stringsAsFactors = F)
 
 lochvalenuts$NO3_NREL <- as.numeric(as.character(lochvalenuts$NO3_NREL))
 lochvalenuts$FLDCOND <- as.numeric(as.character(lochvalenuts$FLDCOND))
