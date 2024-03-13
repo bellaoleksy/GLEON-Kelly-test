@@ -7,7 +7,7 @@ gridSearchInput<-read.csv(here("data/preliminaryMetropolisResults/gridSearchInpu
 # ~Zwart loads  -------------------------------------------------
 
 #### loading in nutrient loads from Zwart's dataset ###
-dir<-'~/Google Drive/My Drive/Research (common)/Research/Data/R/catchment_metab_wg/results/nutrient load/' # directory of load data
+dir<-'~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/catchment_metab_wg/results/nutrient load/' # directory of load data
 # dir<-'/Users/solomonlab/Google Drive/Research (common)/Research/Data/R/catchment_metab_wg/results/nutrient load/' # directory of load data
 files<-list.files(dir) # folders in this dir
 files<-files[-grep('README',files)] # get rid of README doc
@@ -456,7 +456,7 @@ Taupo_TokaanuPowerStation_load<-anti_join(Taupo_TokaanuPowerStation_load, dontus
 
 ## ~Loch loads -------------------------------------------------
 
-Loch_Q_inlet<-read.csv("~/Google Drive/My Drive/Research (common)/Research/Data/R/LVWS-long-term-data/data_clean/metabolism/LochInOut_Q_UVs_CY2015_17.csv", stringsAsFactors = F) %>%
+Loch_Q_inlet<-read.csv("~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/LVWS-long-term-data/data_clean/metabolism/LochInOut_Q_UVs_CY2015_17.csv", stringsAsFactors = F) %>%
   rename(inlet_ft3s = X401733105392400,
          outlet_ft3s = X401733105392404) %>%
   mutate(
@@ -472,7 +472,7 @@ Loch_Q_inlet<-read.csv("~/Google Drive/My Drive/Research (common)/Research/Data/
 
 
 ##############Loch 
-Loch_C_inlet <- read.csv("~/Google Drive/My Drive/Research (common)/Research/Data/R/LVWS-long-term-data/data_clean/surface_chem/LVWS_surfacewaterchemistry_master_180211.csv", stringsAsFactors = F)
+Loch_C_inlet <- read.csv("~/Library/CloudStorage/OneDrive-UCB-O365/Research/Data/R/LVWS-long-term-data/data_clean/surface_chem/LVWS_surfacewaterchemistry_master_180211.csv", stringsAsFactors = F)
 # glimpse(Loch_C_inlet)
 Loch_C_inlet$YEAR <- as.factor(as.character(Loch_C_inlet$YEAR))
 Loch_C_inlet$MONTH <- as.numeric(Loch_C_inlet$MONTH)
