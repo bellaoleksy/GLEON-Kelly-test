@@ -45,3 +45,5 @@ vignettes/*.pdf
 *.xlsx
 #Produced .pptx
 *.pptx
+/EDI
+/figshare
