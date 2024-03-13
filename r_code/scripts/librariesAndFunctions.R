@@ -23,7 +23,8 @@ pacman::p_load("ggcorrplot",
                "skimr",
                "deSolve",
                "Metrics",
-               "imputeTS")
+               "imputeTS",
+               "emmeans")
 
 
 # library(rnaturalearth)
