@@ -707,10 +707,15 @@ newts_full<-bind_rows(UNDERCnewts,oneidanuts,
                       solomonLakeData_nuts, almberganuts, erkennuts,
                       Gollinseenuts, schulzenseenuts, simoncouchenuts,
                       crochenuts) %>%
-  mutate(DOC_mgL = replace(DOC_mgL, lakeName=="Oneida", 4.2)) #One datapoint from DCR:
+  mutate(DOC_mgL = replace(DOC_mgL, lakeName=="Oneida", 4.2)) %>% #One datapoint from DCR:
                                                               #"From our in prep manuscript about different types
                                                               #of N limitation in lakes across the NE, 
                                                               #Oneida is 4.2 mg DOC/L in June 2018. "
+  mutate(lakeName = case_when(lakeName == "Lillsjoliden" ~ "Lillsjolidtjarnen",
+                              lakeName == "Mangstrettjarn" ~ "Mangstrettjarnen",
+                              lakeName == "Nastjarn" ~ "Nastjarnen",
+                              lakeName == "Ovre" ~ "OvreBjorntjarn",
+                              TRUE ~ lakeName))
 
 # metadata_more<-bind_rows(metadata, solomonLakeData_metadata_trimmer)
 
