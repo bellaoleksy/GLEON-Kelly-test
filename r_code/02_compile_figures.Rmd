@@ -922,7 +922,6 @@ all_compareVals <- bind_rows(compareVals,
                              compareVals2)
 
 #Test whether slopes are different from 0
-library(emmeans)
 fitTP <- lm(TPHat~TP, compareVals)
 summary(fitTP)
 confint(fitTP)
@@ -1055,7 +1054,7 @@ A <- compareVals %>%
   ggpp::geom_label_npc(data = slopes %>% filter(name=="TP"),
                        fill="#E69F00",
                  aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$TPHat,compareVals$TP),2),"%",
+                                                       round(Metrics::smape(compareVals$TPHat,compareVals$TP),2)*100,"%",
                                                        "\nRMSE = ",round(Metrics::rmse(compareVals$TPHat,compareVals$TP),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
                  size=3, alpha=0.5)
 
@@ -1079,7 +1078,7 @@ B  <- compareVals %>%
   ggpp::geom_label_npc(data = slopes %>% filter(name=="DOC"),
                        fill="#E69F00",
                  aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$CHat,compareVals$DOC),2),"%",
+                                                       round(Metrics::smape(compareVals$CHat,compareVals$DOC),2)*100,"%",
                                                        "\nRMSE = ",round(Metrics::rmse(compareVals$CHat,compareVals$DOC),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
                  size=3, alpha=0.5)
 
@@ -1101,7 +1100,7 @@ C  <- compareVals %>%
   ggpp::geom_label_npc(data = slopes %>% filter(name=="zMix"),
                        fill="#E69F00",
                  aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$zMixHat,compareVals$meanzMix),2),"%",
+                                                       round(Metrics::smape(compareVals$zMixHat,compareVals$meanzMix),2)*100,"%",
                                                        "\nRMSE = ",round(Metrics::rmse(compareVals$zMixHat,compareVals$meanzMix),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
                  size=3, alpha=0.5)
 
@@ -1125,7 +1124,7 @@ D  <-
   ggpp::geom_label_npc(data = slopes %>% filter(name=="GPP"),
                        fill="#E69F00",
                  aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$GPPHat,compareVals$medianGPP),2),"%",
+                                                       round(Metrics::smape(compareVals$GPPHat,compareVals$medianGPP),2)*100,"%",
                                                        "\nRMSE = ",round(Metrics::rmse(compareVals$GPPHat,compareVals$medianGPP),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
                  size=3, alpha=0.5)
 
@@ -2284,7 +2283,7 @@ metadata$inflows_YN <- factor(metadata$inflows_YN, levels = c("yes", "no"),
 length(unique(metadata$Country))
 
 
-world <- ne_countries(scale = "medium", returnclass = "sf")
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
 
 
 # generate world map
@@ -2369,11 +2368,12 @@ density_plot<-master_df %>%
 ```{r}
 
 
-world <- ne_countries(scale = "medium", returnclass = "sf")
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
 library(spData)
+library(sf)
 data("us_states", package = "spData")
 # us_states_2163 = st_transform(us_states, crs = 2163)
-us_states_bb = st_as_sfc(st_bbox(us_states))
+us_states_bb = sf::st_as_sfc(sf::st_bbox(us_states))
 
 data("world", package = "spData")
 europe <- world %>% filter(continent %in% c("Europe")) %>% filter(name_long %in% metadata$Country)
@@ -2400,7 +2400,7 @@ GLEON_global_map_alt <- world_map %>%
   geom_map(
     map = world_map,
     aes(long, lat, map_id = region),
-    color = "white", fill = "grey50", size = 0.1
+    color = "white", fill = "grey50", linewidth = 0.1
   ) +
   expand_limits(x = world_map$long, y = world_map$lat) +
   geom_point(data=master_df %>%
@@ -2412,7 +2412,7 @@ GLEON_global_map_alt <- world_map %>%
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
              shape=21, color="black", size=2)+
-  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
+  scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll", clip="on") +
   theme_map()+
   theme(legend.position="none")
@@ -2431,7 +2431,7 @@ GLEON_NA <- north_america %>%
   geom_map(
     map = north_america,
     aes(long, lat, map_id = region),
-    color = "white", fill = "grey50", size = 0.1
+    color = "white", fill = "grey50", linewidth = 0.1
   ) +
   # expand_limits(x = north_america$long, y = north_america$lat) +
   geom_point(data=master_df %>%
@@ -2444,7 +2444,7 @@ GLEON_NA <- north_america %>%
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
              shape=21, color="black", size=4, alpha=0.5)+
-  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
+  scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll",xlim= c(-120,-60), ylim = c(25, 50)) +
   labs(x="Longitude",
        y="Latitude") + 
@@ -2467,7 +2467,7 @@ GLEON_EURO <- europe %>%
   geom_map(
     map = europe,
     aes(long, lat, map_id = region),
-    color = "white", fill = "grey50", size = 0.1
+    color = "white", fill = "grey50", linewidth = 0.1
   ) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
@@ -2479,7 +2479,7 @@ GLEON_EURO <- europe %>%
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
              shape=21, color="black", size=4, alpha=0.5)+
-  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
+  scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll", xlim= c(-10,25), ylim = c(50, 70)) +
   labs(x="Longitude",
        y="Latitude") + 
@@ -2499,7 +2499,7 @@ GLEON_NZ <- NZ %>%
   geom_map(
     map = NZ,
     aes(long, lat, map_id = region),
-    color = "white", fill = "grey50", size = 0.1
+    color = "white", fill = "grey50", linewidth = 0.1
   ) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
@@ -2511,7 +2511,7 @@ GLEON_NZ <- NZ %>%
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
              shape=21, color="black", size=4, alpha=0.5)+
-  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
+  scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll") +
   labs(x="Longitude",
        y="Latitude") + 
@@ -2532,7 +2532,7 @@ GLEON_ASIA<-Asia %>%
   geom_map(
     map = Asia,
     aes(long, lat, map_id = region),
-    color = "white", fill = "grey50", size = 0.1
+    color = "white", fill = "grey50", linewidth = 0.1
   ) +
   geom_point(data=master_df %>%
               left_join(., metadata %>%
@@ -2544,7 +2544,7 @@ GLEON_ASIA<-Asia %>%
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
              shape=21, color="black", size=4, alpha=0.5)+
-  scale_fill_manual(values=c("#ffba08","#66BBBB"))+
+  scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll", xlim= c(105,125), ylim = c(20,40)) +
   labs(x="Longitude",
        y="Latitude") + 
@@ -2558,21 +2558,21 @@ ggsave(here("figures/MS/FigureS1.Asia.png"), width=2.15, height=2.5,units="in", 
 
 
 
-## Assemble plots
-bottom_panel <- ( GLEON_ASIA + GLEON_EURO + GLEON_NZ) +
-  plot_layout(
-    # widths = c(1,1,1,1),
-              # heights = c(2,2.1,1.2,1),
-              ncol=3)
+# ## Assemble plots
+# bottom_panel <- ( GLEON_ASIA + GLEON_EURO + GLEON_NZ) +
+#   plot_layout(
+#     # widths = c(1,1,1,1),
+#               # heights = c(2,2.1,1.2,1),
+#               ncol=3)
 
-library(gridExtra)
-grid.arrange(patchworkGrob(bottom_panel), left = "Latitude", bottom = "Longitude")
-
-strbottom_panel
-
-GLEON_global_map_alt / ((GLEON_NA + GLEON_ASIA) / (GLEON_EURO + GLEON_NZ)) + plot_layout(heights=c(3,1))
-
-ggsave(here("figures/MS/FigureS1.studymap.png"), width=8, height=8,units="in", dpi=600)
+# library(gridExtra)
+# grid.arrange(patchworkGrob(bottom_panel), left = "Latitude", bottom = "Longitude")
+# 
+# strbottom_panel
+# 
+# GLEON_global_map_alt / ((GLEON_NA + GLEON_ASIA) / (GLEON_EURO + GLEON_NZ)) + plot_layout(heights=c(3,1))
+# 
+# ggsave(here("figures/MS/FigureS1.studymap.png"), width=8, height=8,units="in", dpi=600)
 
 
 
