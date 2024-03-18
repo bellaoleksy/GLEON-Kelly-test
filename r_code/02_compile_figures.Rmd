@@ -2443,7 +2443,7 @@ GLEON_NA <- north_america %>%
              aes(x=`Longitude (decimal degrees)`,
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
-             shape=21, color="black", size=4, alpha=0.5)+
+             shape=21, color="black", size=4, alpha=0.8)+
   scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll",xlim= c(-120,-60), ylim = c(25, 50)) +
   labs(x="Longitude",
@@ -2478,7 +2478,7 @@ GLEON_EURO <- europe %>%
              aes(x=`Longitude (decimal degrees)`,
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
-             shape=21, color="black", size=4, alpha=0.5)+
+             shape=21, color="black", size=4, alpha=0.8)+
   scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll", xlim= c(-10,25), ylim = c(50, 70)) +
   labs(x="Longitude",
@@ -2510,7 +2510,7 @@ GLEON_NZ <- NZ %>%
              aes(x=`Longitude (decimal degrees)`,
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
-             shape=21, color="black", size=4, alpha=0.5)+
+             shape=21, color="black", size=4, alpha=0.8)+
   scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll") +
   labs(x="Longitude",
@@ -2543,7 +2543,7 @@ GLEON_ASIA<-Asia %>%
              aes(x=`Longitude (decimal degrees)`,
                  y=`Latitude (decimal degrees)`,
                  fill=load_calc),
-             shape=21, color="black", size=4, alpha=0.5)+
+             shape=21, color="black", size=4, alpha=0.8)+
   scale_fill_manual(values=c("#56B4E9","#E69F00"))+
   coord_map("moll", xlim= c(105,125), ylim = c(20,40)) +
   labs(x="Longitude",
