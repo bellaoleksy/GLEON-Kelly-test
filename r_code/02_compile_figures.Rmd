@@ -790,7 +790,7 @@ ggsave(here("figures/MS/Figure4_twopanel.png"), width=8, height=4,units="in", dp
 ```
 
 
-### Figure 3. Pred vs Obs params for 18 calibration lakes
+### Figure 5. Pred vs Obs params for calibration and validation lakes
 
 ```{r}
 
@@ -804,7 +804,7 @@ compareVals<-left_join(predVals,obsVals %>%
   mutate(set="calibration")
 compareVals2 <- left_join(predVals_outOfSample,obsVals %>%
                             select(lakeName, TP, DOC, meanzMix, medianGPP, meanGPP)) %>%
-  mutate(set="modeled") %>%
+  mutate(set="validation") %>%
   filter(!lakeName %in% compareVals$lakeName)
 
 all_compareVals <- bind_rows(compareVals,
@@ -887,30 +887,32 @@ tidy2 <- function(mod) {
 }
 
 
-slopes <- compareVals %>%
-  select(GPPHat,medianGPP) %>%
+slopes <- all_compareVals %>%
+  select(GPPHat,medianGPP,set) %>%
   rename(pred=GPPHat,
          obs=medianGPP)%>%
   mutate(name="GPP") %>%
-  bind_rows(., compareVals %>%
-  select(zMixHat,meanzMix) %>%
+  bind_rows(., all_compareVals %>%
+  select(zMixHat,meanzMix,set) %>%
   rename(pred=zMixHat,
          obs=meanzMix)%>%
   mutate(name="zMix")) %>%
-  bind_rows(., compareVals %>%
-  select(TPHat,TP) %>%
+  bind_rows(., all_compareVals %>%
+  select(TPHat,TP,set) %>%
   rename(pred=TPHat,
          obs=TP)%>%
   mutate(name="TP")) %>%
-  bind_rows(., compareVals %>%
-  select(CHat,DOC) %>%
+  bind_rows(., all_compareVals %>%
+  select(CHat,DOC,set) %>%
   rename(pred=CHat,
          obs=DOC)%>%
   mutate(name="DOC")) %>%
-  nest(data = -c(name)) %>%
+  nest(data = -c(name,set)) %>%
   mutate(
     fit = map(data, ~lm(pred ~ obs, data = .x)),
-    tidy_out = map(fit, tidy2)
+    tidy_out = map(fit, tidy2),
+    RMSE = map_dbl(fit, ~rmse(.x$model$pred, .x$model$obs)),
+    SMAPE = map_dbl(fit, ~smape(.x$model$pred, .x$model$obs))
   ) %>%
   unnest(cols = tidy_out) %>%
   select(-fit, -data) %>%
@@ -920,301 +922,340 @@ slopes <- compareVals %>%
          conf.low=round(conf.low,2),
          conf.high=round(conf.high,2),
          estimate=round(estimate,1),
-         x="left",
-         y="top")
+         x=0,
+         y=1,
+         y = case_when(set=="validation" ~ 0.8,
+                       TRUE ~ y))
 
 
 ## This version includes only the calibration set (18 lakes)
 my_breaks = c(3,10,30,100)
-A <- compareVals %>%
-  ggplot(aes(y=TPHat, x=TP))+
-  geom_point(alpha=0.7, size=2.5, shape=21, fill="#E69F00")+
-  geom_abline(intercept=0, slope=1)+
-  geom_smooth(method="lm",se=F,color="#E69F00",linewidth=0.5)+
-  scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(3,100))+
-  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(3,100))+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  ggpp::geom_label_npc(data = slopes %>% filter(name=="TP"),
-                       fill="#E69F00",
-                 aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$TPHat,compareVals$TP),2)*100,"%",
-                                                       "\nRMSE = ",round(Metrics::rmse(compareVals$TPHat,compareVals$TP),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
-                 size=3, alpha=0.5)
+A <-
+all_compareVals %>%
+  ggplot() +
+  geom_point(aes(y = TPHat, x = TP, fill = set, color = set),
+             alpha = 0.7,
+             size = 2.5,
+             shape = 21,
+             color = "black") +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_smooth(aes(y = TPHat, x = TP, color=set, fill=set),
+              data = . %>% filter(set != "validation"),
+              method = "lm",
+              se = FALSE,
+              linewidth = 0.5,
+              show.legend = FALSE) +
+  scale_x_log10(
+    name = expression(paste('Mean lake TP (mg m' ^ -3, ')')),
+    labels = my_breaks,
+    breaks = my_breaks,
+    limits = c(3, 100)
+  ) +
+  scale_y_log10(
+    name = expression(paste('Modeled lake TP (mg m' ^ -3, ')')),
+    labels = my_breaks,
+    breaks = my_breaks,
+    limits = c(3, 100)
+  ) +
+  theme_pubr(base_size = 12,
+             margin = FALSE,
+             border = TRUE) +
+  scale_fill_manual(values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+  ggpp::geom_label_npc(
+    data = slopes %>% filter(name == "TP" & set == "calibration"),
+    fill = "#E69F00",
+    aes(
+      npcx = x,
+      npcy = y,
+      label = paste(
+        "SMAPE = ",
+        round(SMAPE, 2) * 100,
+        "%",
+        "\nRMSE = ",
+        round(RMSE, 1),
+        "\nslope = ",
+        estimate,
+        " (",
+        conf.low,
+        ",",
+        conf.high,
+        ")",
+        sep = ""
+      )
+    ),
+    size = 3,
+    alpha = 0.5
+  )
 
 
 
 my_breaks = c(0.3,1,3,10,30)
-B  <- compareVals %>%
-  ggplot(aes(y=CHat, x=DOC))+
-  geom_point(alpha=0.7, size=2.5, shape=21, fill="#E69F00")+
-  geom_abline(intercept=0, slope=1)+
-  geom_smooth(method="lm",se=F,color="#E69F00",linewidth=0.5)+
-  scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(0.3,30))+
-  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(0.3,30))+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  ggpp::geom_label_npc(data = slopes %>% filter(name=="DOC"),
-                       fill="#E69F00",
-                 aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$CHat,compareVals$DOC),2)*100,"%",
-                                                       "\nRMSE = ",round(Metrics::rmse(compareVals$CHat,compareVals$DOC),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
-                 size=3, alpha=0.5)
-
-my_breaks = c(1,3,10,30)
-C  <- compareVals %>%
-  ggplot(aes(y=zMixHat, x=meanzMix))+
-  geom_point(alpha=0.7, size=2.5, shape=21, fill="#E69F00")+
-  geom_abline(intercept=0, slope=1)+
-  geom_smooth(method="lm",se=F,color="#E69F00",linewidth=0.5)+
-  scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(1,30))+
-  scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(1,30))+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  ggpp::geom_label_npc(data = slopes %>% filter(name=="zMix"),
-                       fill="#E69F00",
-                 aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$zMixHat,compareVals$meanzMix),2)*100,"%",
-                                                       "\nRMSE = ",round(Metrics::rmse(compareVals$zMixHat,compareVals$meanzMix),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
-                 size=3, alpha=0.5)
-
-my_breaks = c(30,100,300,1000,3000,10000)
-D  <-
-  compareVals %>%
-  ggplot(aes(y=GPPHat, x=medianGPP))+
-  geom_point(alpha=0.7, size=2.5, shape=21, fill="#E69F00")+
-  geom_abline(intercept=0, slope=1)+
-  geom_smooth(method="lm",se=F,color="#E69F00",linewidth=0.5)+  scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma,
-                breaks = my_breaks,
-                limits = c(30,10000)
-                )+
-  scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),
-                labels = scales::comma,
-                breaks = my_breaks,
-                limits = c(30,10000)
-                )+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  ggpp::geom_label_npc(data = slopes %>% filter(name=="GPP"),
-                       fill="#E69F00",
-                 aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(compareVals$GPPHat,compareVals$medianGPP),2)*100,"%",
-                                                       "\nRMSE = ",round(Metrics::rmse(compareVals$GPPHat,compareVals$medianGPP),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
-                 size=3, alpha=0.5)
-
-
-(A+B)/(C+D) + plot_annotation(tag_levels = 'A')
-
-ggsave(here("figures/MS/FigS3.modeled_vs_measured_TP_DOC_zMIX_GPP_18lakes.png"), dpi=600, width=8,height=8, units="in")
-
-
-
-## This version includes all of the lakes 
-## RMSEs
-
-test_set_vals <- all_compareVals %>% filter(set=="modeled") %>% select(GPPHat, meanGPP, medianGPP, meanzMix, zMixHat,
-                                                                       TPHat, TP, CHat, DOC)
-
-#MeanGPP
-actual_GPP_mean <- test_set_vals$meanGPP
-#MedianGPP
-actual_GPP_median <- test_set_vals$medianGPP
-pred_GPP <- test_set_vals$GPPHat
-#zMix
-actual_zmix <- test_set_vals$meanzMix
-pred_zmix <- test_set_vals$zMixHat
-
-#RMSE of MeanGPP
-Metrics::rmse(actual_GPP_mean,pred_GPP)
-
-#RMSE of MedianGPP
-Metrics::rmse(actual_GPP_median,pred_GPP)
-Metrics::smape(actual_GPP_median,pred_GPP) #Symmetiric Mean Absolute Percent Error
-
-
-#RMSE of zmix
-Metrics::rmse(actual_zmix,pred_zmix)
-Metrics::smape(actual_zmix,pred_zmix)
-
-
-fitzMix <- lm(zMixHat~meanzMix, test_set_vals)
-summary(fitzMix)
-confint(fitzMix)
-
-zMix.emt <- emtrends(fitzMix, ~1, var="meanzMix")
-zMix.emt
-test(zMix.emt, null=1)
-
-
-fitGPPmean <- lm(GPPHat~meanGPP, test_set_vals)
-fitGPPmean
-GPP.mean.emt <- emtrends(fitGPPmean, ~1, var="meanGPP")
-GPP.mean.emt
-test(GPP.mean.emt, null=1)
-
-fitGPPmed <- lm(GPPHat~medianGPP, test_set_vals)
-summary(fitGPPmed)
-confint(fitGPPmed)
-GPP.med.emt <- emtrends(fitGPPmed, ~1, var="medianGPP")
-GPP.med.emt
-test(GPP.med.emt, null=1)
-tidy2(fitGPPmed)
-
-#A better way, probably
-tidy2 <- function(mod) {
-  tidy(mod, conf.int = TRUE, conf.level = 0.95)
-}
-
-
-slopes <- test_set_vals %>%
-  select(GPPHat,medianGPP) %>%
-  rename(pred=GPPHat,
-         obs=medianGPP)%>%
-  mutate(name="GPP") %>%
-  bind_rows(., test_set_vals %>%
-  select(zMixHat,meanzMix) %>%
-  rename(pred=zMixHat,
-         obs=meanzMix)%>%
-  mutate(name="zMix")) %>%
-  nest(data = -c(name)) %>%
-  mutate(
-    fit = map(data, ~lm(pred ~ obs, data = .x)),
-    tidy_out = map(fit, tidy2)
-  ) %>%
-  unnest(cols = tidy_out) %>%
-  select(-fit, -data) %>%
-  filter(term != "(Intercept)") %>%
-  # filter(p.value<0.05) %>%
-  mutate(p.value=round(p.value,3),
-         conf.low=round(conf.low,2),
-         conf.high=round(conf.high,2),
-         estimate=round(estimate,1),
-         x="left",
-         y="top")
-
-
-my_breaks = c(3,10,30,100)
-A <- all_compareVals %>%
-  ggplot(aes(y=TPHat, x=TP, fill=set))+
-  geom_point(alpha=0.7, size=2.5, shape=21)+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  colorblindr::scale_fill_OkabeIto(name="Lake set:")+
-  geom_abline(intercept=0, slope=1)+
-  scale_x_log10(name = expression(paste('Mean lake TP (mg m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(3,100))+
-  scale_y_log10(name = expression(paste('Modeled lake TP (mg m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(3,100))+
-  guides(fill = guide_legend(show = FALSE),
-         line = guide_legend(show = FALSE))
-
-
-my_breaks = c(0.3,1,3,10,30)
-B  <- all_compareVals %>%
-  ggplot(aes(y=CHat, x=DOC, fill=set))+
-  geom_point(alpha=0.7, size=2.5, shape=21)+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  colorblindr::scale_fill_OkabeIto(name="Lake set:")+
-  geom_abline(intercept=0, slope=1)+
-  scale_x_log10(name = expression(paste('Mean lake DOC (g m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(0.3,30))+
-  scale_y_log10(name = expression(paste('Modeled lake DOC (g m'^-3,')')),
-                labels = my_breaks,
-                breaks = my_breaks,
-                limits = c(0.3,30))+
-  guides(fill = guide_legend(show = FALSE),
-         line = guide_legend(show = FALSE))
+B  <-
+all_compareVals %>%
+  ggplot() +
+  geom_point(aes(y = CHat, x = DOC, fill = set, color = set),
+             alpha = 0.7,
+             size = 2.5,
+             shape = 21,
+             color = "black") +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_smooth(aes(y = CHat, x = DOC, color=set, fill=set),
+              data = . %>% filter(set != "validation"),
+              method = "lm",
+              se = FALSE,
+              linewidth = 0.5,
+              show.legend = FALSE) +
+  scale_x_log10(
+    name = expression(paste('Mean lake DOC (g m' ^ -3, ')')),
+    labels = my_breaks,
+    breaks = my_breaks,
+    limits = c(3, 100)
+  ) +
+  scale_y_log10(
+    name = expression(paste('Modeled lake DOC (g m' ^ -3, ')')),
+    labels = my_breaks,
+    breaks = my_breaks,
+    limits = c(3, 100)
+  ) +
+  theme_pubr(base_size = 12,
+             margin = FALSE,
+             border = TRUE) +
+  scale_fill_manual(values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+  ggpp::geom_label_npc(
+    data = slopes %>% filter(name == "DOC" & set == "calibration"),
+    fill = "#E69F00",
+    aes(
+      npcx = x,
+      npcy = y,
+      label = paste(
+        "SMAPE = ",
+        round(SMAPE, 2) * 100,
+        "%",
+        "\nRMSE = ",
+        round(RMSE, 1),
+        "\nslope = ",
+        estimate,
+        " (",
+        conf.low,
+        ",",
+        conf.high,
+        ")",
+        sep = ""
+      )
+    ),
+    size = 3,
+    alpha = 0.5
+  )
 
 
 my_breaks = c(1,3,10,30)
-C  <- all_compareVals %>%
-  ggplot(aes(y=zMixHat, x=meanzMix,
-             fill=set, color=set))+
-  geom_point(alpha=0.7, size=2.5, shape=21, color="black")+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  colorblindr::scale_fill_OkabeIto(name="Lake set:")+
-  colorblindr::scale_color_OkabeIto(name="Lake set:")+
-  geom_smooth(method="lm", se=FALSE, show.legend=FALSE)+
-  geom_abline(intercept=0, slope=1)+
-  # scale_x_log10(name = expression(paste('Mean z'[mix],' (m)')),
-  #               labels = my_breaks,
-  #               breaks = my_breaks,
-  #               limits = c(1,30))+
-  # scale_y_log10(name = expression(paste('Modeled z'[mix],' (m)')),
-  #               labels = my_breaks,
-  #               breaks = my_breaks,
-  #               limits = c(1,30))+
-  ggpp::geom_label_npc(data = slopes %>% filter(name=="zMix"),
-                       fill="#56B4E9",
-                 aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(actual_zmix,pred_zmix),2),"%",
-                                                       "\nRMSE = ",round(Metrics::rmse(actual_zmix,pred_zmix),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
-                 size=3, alpha=0.5)
+C  <-
+all_compareVals %>%
+  ggplot() +
+  geom_point(
+    aes(
+      y = zMixHat,
+      x = meanzMix,
+      fill = set,
+      color = set
+    ),
+    alpha = 0.7,
+    size = 2.5,
+    shape = 21,
+    color = "black"
+  ) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_smooth(
+    aes(
+      y = zMixHat,
+      x = meanzMix,
+      color = set,
+      fill = set
+    ),
+    method = "lm",
+    se = FALSE,
+    linewidth = 0.5,
+    show.legend = FALSE
+  ) +
+  scale_x_log10(
+    name = expression(paste('Mean z'[mix], ' (m)')),
+    labels = my_breaks,
+    breaks = my_breaks,
+    limits = c(1, 30)
+  ) +
+  scale_y_log10(
+    name = expression(paste('Modeled z'[mix], ' (m)')),
+    labels = my_breaks,
+    breaks = my_breaks,
+    limits = c(1, 30)
+  ) +
+  theme_pubr(base_size = 12,
+             margin = FALSE,
+             border = TRUE) +
+  scale_fill_manual(values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+  ggpp::geom_label_npc(
+    data = slopes %>% filter(name == "zMix" & set == "calibration"),
+    fill = "#E69F00",
+    aes(
+      npcx = x,
+      npcy = y,
+      label = paste(
+        "SMAPE = ",
+        round(SMAPE, 2) *
+          100,
+        "%",
+        "\nRMSE = ",
+        round(RMSE, 1),
+        "\nslope = ",
+        estimate,
+        " (",
+        conf.low,
+        ",",
+        conf.high,
+        ")",
+        sep = ""
+      )
+    ),
+    size = 3,
+    alpha = 0.5
+  ) +
+    ggpp::geom_label_npc(
+    data = slopes %>% filter(name == "zMix" & set == "validation"),
+    fill = "#56B4E9",
+    aes(
+      npcx = x,
+      npcy = y,
+      label = paste(
+        "SMAPE = ",
+        round(SMAPE, 2) *
+          100,
+        "%",
+        "\nRMSE = ",
+        round(RMSE, 1),
+        "\nslope = ",
+        estimate,
+        " (",
+        conf.low,
+        ",",
+        conf.high,
+        ")",
+        sep = ""
+      )
+    ),
+    size = 3,
+    alpha = 0.5
+  )
 
 my_breaks = c(30,100,300,1000,3000,10000)
 D  <-
   all_compareVals %>%
-  ggplot(aes(y=GPPHat, x=medianGPP, fill=set, color=set))+
-  geom_point(alpha=0.7, size=2.5, shape=21, color="black")+
-  geom_smooth(method="lm", se=FALSE, show.legend = FALSE)+
-  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-  colorblindr::scale_fill_OkabeIto(name="Lake set:")+
-  colorblindr::scale_color_OkabeIto(name="Lake set:")+
-  geom_abline(intercept=0, slope=1)+
-  scale_x_log10(name = expression(paste('Median GPP (mg C m'^-2,' day'^-1,')')),
+  ggplot()+
+  geom_point(
+    aes(
+      y = GPPHat,
+      x = medianGPP,
+      fill = set,
+      color = set
+    ),
+    alpha = 0.7,
+    size = 2.5,
+    shape = 21,
+    color = "black"
+  ) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_smooth(
+    aes(
+      y = GPPHat,
+      x = medianGPP,
+      color = set,
+      fill = set
+    ),
+    method = "lm",
+    se = FALSE,
+    linewidth = 0.5,
+    show.legend = FALSE
+  ) +
+  scale_x_log10(name = expression(paste('Mean GPP (mg C m'^-2,' day'^-1,')')),
                 labels = scales::comma,
                 breaks = my_breaks,
-                limits = c(30,12000))+
+                limits = c(30,10000)
+                )+
   scale_y_log10(name = expression(paste('Modeled GPP (mg C m'^-2,' day'^-1,')')),
                 labels = scales::comma,
                 breaks = my_breaks,
-                limits = c(30,12000))+
-  # ggpp::geom_label_npc(aes(npcx = "left", npcy = "top",
-  #                          label = paste("RMSE =",round(Metrics::rmse(actual_GPP_median,pred_GPP),1))),
-  #                size=3, alpha=0.5)+
-  ggpp::geom_label_npc(data = slopes %>% filter(name=="GPP"),
-                       fill="#56B4E9",
-                 aes(npcx = x, npcy = y, label = paste("SMAPE = ",
-                                                       round(Metrics::smape(actual_GPP_median,pred_GPP),2),"%",
-                                                       "\nRMSE = ",round(Metrics::rmse(actual_GPP_median,pred_GPP),1),"\nslope = ",estimate," (",conf.low,",",conf.high,")", sep="")),
-                 size=3, alpha=0.5)
+                limits = c(30,10000)
+                )+
+  theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
+      scale_fill_manual(values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+      ggpp::geom_label_npc(
+    data = slopes %>% filter(name == "GPP" & set == "calibration"),
+    fill = "#E69F00",
+    aes(
+      npcx = x,
+      npcy = y,
+      label = paste(
+        "SMAPE = ",
+        round(SMAPE, 2) *
+          100,
+        "%",
+        "\nRMSE = ",
+        round(RMSE, 1),
+        "\nslope = ",
+        estimate,
+        " (",
+        conf.low,
+        ",",
+        conf.high,
+        ")",
+        sep = ""
+      )
+    ),
+    size = 3,
+    alpha = 0.5
+  ) +
+    ggpp::geom_label_npc(
+    data = slopes %>% filter(name == "GPP" & set == "validation"),
+    fill = "#56B4E9",
+    aes(
+      npcx = x,
+      npcy = y,
+      label = paste(
+        "SMAPE = ",
+        round(SMAPE, 2) *
+          100,
+        "%",
+        "\nRMSE = ",
+        round(RMSE, 1),
+        "\nslope = ",
+        estimate,
+        " (",
+        conf.low,
+        ",",
+        conf.high,
+        ")",
+        sep = ""
+      )
+    ),
+    size = 3,
+    alpha = 0.5
+  )
 
-combined <- (A+B)/(C+D) & theme(legend.position="bottom",
-                                legend.text.align = 0.5,
-                                legend.margin = margin(0, 0, 0, 0)) 
 
+((A+B)/(C+D)) + plot_annotation(tag_levels = 'A') + plot_layout(guides = "collect") &
+  theme(legend.position="bottom")
 
-combined +  plot_annotation(tag_levels = 'A') +
-  plot_layout(guides = "collect")
-
-
-ggsave(here("figures/MS/Figure3.modeled_vs_measured_TP_DOC_zMIX_GPP_allLakes.png"), dpi=600, width=8,height=8, units="in")
-
+ggsave(here("figures/MS/Figure5.Model_vs_Obs_Calibration_and_Validation.png"), dpi=600, width=8,height=8, units="in")
 
 
 ```
 
-#### Figure S7. Residuals exercise
+
+
+### Figure S7. Residuals exercise
 
 ```{r}
 mod <- lm(GPPHat~medianGPP, all_compareVals)
