@@ -29,8 +29,7 @@ vignettes/*.pdf
 .Renviron
 #Ignore DS_Store!
 .DS_Store
-#Data folder
-/data
+
 #Trouble shooting folder
 /trouble shooting
 #archive folder
@@ -45,5 +44,7 @@ vignettes/*.pdf
 *.xlsx
 #Produced .pptx
 *.pptx
+#Data folder
+/data
 /EDI
 /figshare
