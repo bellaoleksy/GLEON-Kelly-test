@@ -25,7 +25,10 @@ pacman::p_load("ggcorrplot",
                "Metrics",
                "imputeTS",
                "emmeans",
-               "ggpp")
+               "ggpp",
+               "colorblindr",
+               "officer",
+               "flextable")
 
 
 # library(rnaturalearth)
