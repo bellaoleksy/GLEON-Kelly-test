@@ -462,6 +462,56 @@ master_df %>%
         )
 ggsave(here("figures/MS/GPP_zMax_for_reviewer.png"), dpi=600, width=6,height=4, units="in")
 
+#- Fig. 3: Super interesting that GPP and DOClake have this negative relationship. Comparing this to the synthetic results in Kelly (2018), they mentioned that the model predicted near-zero GPP at high DOC conc (> 17 mg/L for 1 km2 lake). Most lakes in your dataset seem to be below 1 km2, but GPP still seems to not approach zero in most cases. How was the light climate in your modeled lakes with DOC > 17 mg/L, did they still had phytoplankton growth happening?
+(master_df %>%
+  mutate(dataset = case_when(lakeName %in% observed_loads_kelly$lakeName ~ "calibration",
+                             TRUE ~ "modeled"),
+         loadCP=(DOC_gm3_mod/(TP_mgm3_mod)),
+         lakeCP=(DOC_mgL/TP_ugL)) %>%
+  filter(DOC_mgL >= 17) %>%
+  ggplot(aes(x=SA_km2, y=medianGPP, fill=lakeCP, label=lakeName))+
+  geom_point(shape=21, size=4)+
+    scale_fill_distiller(palette ="YlOrRd", direction=-1,
+                       name="Lake DOC:TP",
+                       guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))+
+    scale_y_log10(expression(paste('Median observed GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma, breaks_log(n = 6, base = 10))+
+  scale_x_continuous(expression(paste('Surface area (km'^2,')')),labels = scales::comma)+
+  geom_text_repel() ) +
+(master_df %>%
+  mutate(dataset = case_when(lakeName %in% observed_loads_kelly$lakeName ~ "calibration",
+                             TRUE ~ "modeled"),
+         loadCP=(DOC_gm3_mod/(TP_mgm3_mod)),
+         lakeCP=(DOC_mgL/TP_ugL)) %>%
+  filter(DOC_mgL >= 17) %>%
+  ggplot(aes(x=DOC_mgL, y=medianGPP, fill=log10(HRT_days), label=lakeName))+
+  geom_point(shape=21, size=4)+
+    scale_fill_distiller(palette ="PuRd",
+                       name="HRT (days)\n log10 trans",
+                       guide = guide_colorbar(frame.colour = "black", ticks.colour = "black"))+
+    scale_y_log10(expression(paste('Median observed GPP (mg C m'^-2,' day'^-1,')')),
+                labels = scales::comma, breaks_log(n = 6, base = 10))+
+  scale_x_continuous(expression(paste('DOC (mg L'^-1,')')),
+                     labels = scales::comma)+
+  geom_text_repel() ) / 
+  (master_df %>%
+  mutate(dataset = case_when(lakeName %in% observed_loads_kelly$lakeName ~ "calibration",
+                             TRUE ~ "modeled"),
+         loadCP=(DOC_gm3_mod/(TP_mgm3_mod)),
+         lakeCP=(DOC_mgL/TP_ugL)) %>%
+  filter(DOC_mgL >= 17) %>%
+  ggplot(aes(x=meanzMix, y=DOC_mgL, fill=medianGPP, label=lakeName))+
+  geom_jitter(shape=21, size=4, width=0.1, height=0.1)+
+  scale_fill_distiller(palette ="YlGnBu", direction=1,
+                       name="Obs. GPP", trans = "log10",
+                       guide = guide_colorbar(frame.colour = "black",
+                                              ticks.colour = "black"))+
+  scale_y_continuous(expression(paste('DOC (mg L'^-1,')')),
+                     labels = scales::comma)+
+  geom_text_repel())
+
+ggsave(here("figures/MS/GPP_v_SA_DOCTP_for_reviewer.png"), dpi=600, width=9, height=8, units="in")
+
 
 ```
 
