@@ -834,7 +834,8 @@ all_compareVals %>%
     ),
     size = 3,
     alpha = 0.5
-  )
+  )+
+  annotation_logticks(alpha=0.5)
 
 
 
@@ -895,7 +896,8 @@ all_compareVals %>%
     ),
     size = 3,
     alpha = 0.5
-  )
+  )+
+  annotation_logticks(alpha=0.5)
 
 
 my_breaks = c(1,3,10,30)
@@ -995,7 +997,8 @@ all_compareVals %>%
     ),
     size = 3,
     alpha = 0.5
-  )
+  )+
+  annotation_logticks(alpha=0.5)
 
 my_breaks = c(30,100,300,1000,3000,10000)
 D  <-
@@ -1090,13 +1093,14 @@ D  <-
     ),
     size = 3,
     alpha = 0.5
-  )
+  )+
+  annotation_logticks(alpha=0.5)
 
 
 ((A+B)/(C+D)) + plot_annotation(tag_levels = 'A') + plot_layout(guides = "collect") &
   theme(legend.position="bottom")
 
-ggsave(here("figures/MS/Figure5.Model_vs_Obs_Calibration_and_Validation.png"), dpi=600, width=8,height=8, units="in")
+ggsave(here("figures/MS/Figure5.Model_vs_Obs_Calibration_and_Validation.png"), dpi=600, width=9,height=9, units="in")
 
 
 ```
