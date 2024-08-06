@@ -2521,7 +2521,7 @@ A<-master_df %>%
                 breaks = my_breaks,
                 limits = c(1,40))+
   ggpp::geom_label_npc(data = RMSEs %>% filter(names=="DOCin"),
-                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1),"g/m3")),
                  size=3, alpha=0.5)
 
 my_breaks = c(10,30,100,300)
@@ -2542,7 +2542,7 @@ B<-master_df %>%
                 breaks = my_breaks,
                 limits = c(5,300))+
   ggpp::geom_label_npc(data = RMSEs %>% filter(names=="TPin"),
-                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1),"g/m3")),
                  size=3, alpha=0.5)
 
 ## Loads instead of concentrations
@@ -2564,7 +2564,7 @@ C<-master_df %>%
                 breaks = my_breaks,
                 limits = c(1,100000))+
   ggpp::geom_label_npc(data = RMSEs %>% filter(names=="DOCload"),
-                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1),"kg/day")),
                  size=3, alpha=0.5)
 
 my_breaks = c(0.001,0.1,10,1000)
@@ -2584,7 +2584,7 @@ D<-master_df %>%
                 breaks = my_breaks,
                 limits = c(0.001,1000))+
   ggpp::geom_label_npc(data = RMSEs %>% filter(names=="TPload"),
-                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1))),
+                 aes(npcx = x, npcy = y, label = paste("RMSE =",round(RMSEs,1),"kg/day")),
                  size=3, alpha=0.5)
 
 (A+B)/(C+D)+plot_annotation(tag_levels = 'A') 
