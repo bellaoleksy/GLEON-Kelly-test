@@ -560,9 +560,10 @@ DOClakevsDOCin <- all_compareVals %>%
   xlab(expression(paste('Lake DOC (mg m'^-3,')')))+
   ylab(expression(paste('Inflow DOC (mg m'^-3,')')))
 
-
+hjust=0.5
 combined <- TPlakevsTPin + DOClakevsDOCin &   theme(legend.position="bottom",
-        legend.text.align = 0.5,
+        # legend.text.align = 0.5,
+        legend.text = element_text(hjust), 
         legend.margin = margin(0, 0, 0, 0))
 combined +  plot_annotation(tag_levels = 'A') +
   plot_layout(guides = "collect")
@@ -574,8 +575,8 @@ ggsave(here("figures/MS/FigureS3.DOC_or_TP_lake_vs_inflow.png"), width=8, height
 ### In this version, the fill corresponds to DOC:TP
 #This version makes sure to use the actual DOCin and TPin conc for the 18 lakes, not modeled
 
-my_breaks_x = c(0,25,50,75,100,125)
-my_breaks_y = c(0,2500,5000,7500)
+my_breaks_x = c(0,12,24,36,48,60)
+my_breaks_y = c(0,1800,3600,5400,7200,9000)
 
 GPP_DOC_lake_DOCTP <-
   all_compareVals %>%
@@ -591,7 +592,7 @@ GPP_DOC_lake_DOCTP <-
   scale_x_continuous(name=expression(paste('Lake DOC (g m'^-3,')')),
                      breaks=my_breaks_x,
                      labels=my_breaks_x,
-                     limits=c(0,130))+
+                     limits=c(0,60))+
   scale_y_continuous(name=expression(paste('Median GPP (mg C m'^-2,' day'^-1,')')),
                      breaks=my_breaks_y,
                      labels=my_breaks_y,
@@ -599,8 +600,8 @@ GPP_DOC_lake_DOCTP <-
   theme(legend.position="bottom")
 
 #TP lake vs DOC lake
-my_breaks_x = c(0,20,40,60)
-my_breaks_y = c(0,100,200,300)
+my_breaks_x = c(0,12,24,36,48,60)
+my_breaks_y = c(0,60,120,180,240,300)
 
 TP_DOC_lake_GPP <-  all_compareVals %>%
   left_join(., master_df %>% select(lakeName, LSA_sizeclass)) %>%
