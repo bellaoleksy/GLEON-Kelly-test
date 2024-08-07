@@ -2591,7 +2591,7 @@ D<-master_df %>%
 # + plot_annotation(title = gg_title)
 #   
 # 
-ggsave(here("figures/MS/FigS4.modeled_vs_measured_loads_18lakes.png"), dpi=600, width=8,height=7, units="in")
+ggsave(here("figures/MS/FigS4.modeled_vs_measured_loads_18lakes.pdf"), dpi=600, width=8,height=7, units="in")
 # 
 #
 
