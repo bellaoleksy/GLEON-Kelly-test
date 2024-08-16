@@ -362,7 +362,7 @@ my_labeller <- as_labeller(c(HRT_days="HRT~(days)", LSA_km2="Surface~Area~(km^2)
 
 
 linear_models <- master_df %>%
-  select(medianGPP, HRT_days, WALA, zMax,
+  select(medianGPP, HRT_days, WALA,
          meanzMix, TP_ugL, DOC_mgL, LSA_km2, V) %>%
   mutate(CP = DOC_mgL / (TP_ugL),
          V = V / 1000000) %>%
@@ -389,7 +389,7 @@ linear_models <- master_df %>%
                                         "TP_ugL",
                                         "CP", "meanzMix",
                                         "HRT_days", "WALA",
-                                        "LSA_km2", "V", "zMax")))
+                                        "LSA_km2", "V")))
 
 
 GPP_correlations<-master_df %>%
@@ -405,7 +405,7 @@ GPP_correlations<-master_df %>%
                               "HRT_days","WALA",
                               "LSA_km2","V")),
          dataset = case_when(lakeName %in% observed_loads_kelly$lakeName ~ "calibration",
-                             TRUE ~ "modeled"))%>%
+                             TRUE ~ "validation"))%>%
   ggplot(aes(x=value, y=medianGPP, group=predictor))+
   geom_smooth(method="lm", se=T, color="grey50", fill="black", linewidth=0.5, fullrange=TRUE)+
   geom_point(aes(shape=dataset), size=3,color="black", fill="black", alpha=0.5)+
@@ -646,6 +646,7 @@ ggsave(here("figures/MS/Figure4_twopanel.png"), width=8, height=4,units="in", dp
 predVals<-read.csv(here("data/metropolis_results/kellyModelOutput_wObservedLoads_2023-03-17.csv")) 
 obsVals<-read.csv(here("data/export/master_df_export.csv")) %>% select(-X)
 predVals_outOfSample<-read.csv(here("data/metropolis_results/kellyModelOutput_wModeledLoads_2023-03-17.csv")) 
+standardDevs<-read.csv("data/metropolis_results/simulationStandardDeviations.csv")
 # obsVals_outOfSample<-read.csv(here("data/metropolis_results/gridSearchInput_unmodeledInfoLakes4bella.csv")) 
 
 compareVals<-left_join(predVals,obsVals %>%
@@ -657,7 +658,8 @@ compareVals2 <- left_join(predVals_outOfSample,obsVals %>%
   filter(!lakeName %in% compareVals$lakeName)
 
 all_compareVals <- bind_rows(compareVals,
-                             compareVals2)
+                             compareVals2) %>%
+  left_join(standardDevs, by=c("lakeName"="lakeID"))
 
 #Test whether slopes are different from 0
 fitTP <- lm(TPHat~TP, compareVals)
@@ -781,8 +783,13 @@ slopes <- all_compareVals %>%
 my_breaks = c(3,10,30,100)
 A <-
 all_compareVals %>%
-  ggplot() +
+  ggplot(aes(y = TPHat, x = TP)) +
+  geom_errorbar(
+    aes(ymin = TPHat-TPHat_sd, ymax = TPHat+TPHat_sd, color = set),
+    position = position_dodge(0.3), width = 0.01
+    )+
   geom_point(aes(y = TPHat, x = TP, fill = set, color = set),
+             position = position_dodge(0.3),
              alpha = 0.7,
              size = 2.5,
              shape = 21,
@@ -809,8 +816,8 @@ all_compareVals %>%
   theme_pubr(base_size = 12,
              margin = FALSE,
              border = TRUE) +
-  scale_fill_manual(values = c("#E69F00","#56B4E9")) +
-  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+  scale_fill_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
   ggpp::geom_label_npc(
     data = slopes %>% filter(name == "TP" & set == "calibration"),
     fill = "#E69F00",
@@ -843,8 +850,13 @@ all_compareVals %>%
 my_breaks = c(0.3,1,3,10,30)
 B  <-
 all_compareVals %>%
-  ggplot() +
+  ggplot(aes(y = CHat, x = DOC)) +
+  geom_errorbar(
+    aes(ymin = CHat-CHat_sd, ymax = CHat+CHat_sd, color = set),
+    position = position_dodge(0.3), width = 0.01
+    )+
   geom_point(aes(y = CHat, x = DOC, fill = set, color = set),
+             position = position_dodge(0.3),
              alpha = 0.7,
              size = 2.5,
              shape = 21,
@@ -871,8 +883,8 @@ all_compareVals %>%
   theme_pubr(base_size = 12,
              margin = FALSE,
              border = TRUE) +
-  scale_fill_manual(values = c("#E69F00","#56B4E9")) +
-  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+  scale_fill_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
   ggpp::geom_label_npc(
     data = slopes %>% filter(name == "DOC" & set == "calibration"),
     fill = "#E69F00",
@@ -904,7 +916,11 @@ all_compareVals %>%
 my_breaks = c(1,3,10,30)
 C  <-
 all_compareVals %>%
-  ggplot() +
+  ggplot(aes(y = zMixHat, x = meanzMix)) +
+  geom_errorbar(
+    aes(ymin = zMixHat-zMixHat_sd, ymax = zMixHat+zMixHat_sd, color = set),
+    position = position_dodge(0.3), width = 0.01
+    )+
   geom_point(
     aes(
       y = zMixHat,
@@ -945,8 +961,8 @@ all_compareVals %>%
   theme_pubr(base_size = 12,
              margin = FALSE,
              border = TRUE) +
-  scale_fill_manual(values = c("#E69F00","#56B4E9")) +
-  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+  scale_fill_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
   ggpp::geom_label_npc(
     data = slopes %>% filter(name == "zMix" & set == "calibration"),
     fill = "#E69F00",
@@ -1004,7 +1020,11 @@ all_compareVals %>%
 my_breaks = c(30,100,300,1000,3000,10000)
 D  <-
   all_compareVals %>%
-  ggplot()+
+  ggplot(aes(y = GPPHat, x = medianGPP)) +
+  geom_errorbar(
+    aes(ymin = GPPHat-GPPHat_sd, ymax = GPPHat+GPPHat_sd, color = set),
+    position = position_dodge(0.3), width = 0.01
+    )+
   geom_point(
     aes(
       y = GPPHat,
@@ -1041,8 +1061,8 @@ D  <-
                 limits = c(30,10000)
                 )+
   theme_pubr(base_size = 12, margin=FALSE, border=TRUE)+
-      scale_fill_manual(values = c("#E69F00","#56B4E9")) +
-  scale_color_manual(values = c("#E69F00","#56B4E9")) +
+      scale_fill_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
+  scale_color_manual(name="Data set:", values = c("#E69F00","#56B4E9")) +
       ggpp::geom_label_npc(
     data = slopes %>% filter(name == "GPP" & set == "calibration"),
     fill = "#E69F00",
@@ -1101,7 +1121,11 @@ D  <-
 ((A+B)/(C+D)) + plot_annotation(tag_levels = 'A') + plot_layout(guides = "collect") &
   theme(legend.position="bottom")
 
-ggsave(here("figures/MS/Figure5.Model_vs_Obs_Calibration_and_Validation.png"), dpi=600, width=9,height=9, units="in")
+ggsave(here("figures/MS/Figure5.Model_vs_Obs_Calibration_and_Validation.pdf"), dpi=600, width=9,height=9, units="in")
+
+test <- all_compareVals %>%
+  mutate(log10_GPPHat = log10(GPPHat),
+         log10_GPPHat_sd = log10(GPPHat_sd))
 
 
 ```
